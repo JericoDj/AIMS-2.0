@@ -1,11 +1,338 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
-class AdminPage extends StatelessWidget {
+// IMPORT ALL SUBPAGES
+import 'admin/DashboardPage.dart';
+import 'admin/InventoryPage.dart';
+import 'admin/ManageAccountPage.dart';
+import 'admin/Offline/OfflineInventoryPage.dart';
+import 'admin/Offline/OfflineStockMonitoringPage.dart';
+import 'admin/Offline/OfflineTransactionsPage.dart';
+import 'admin/ReportsPage.dart';
+import 'admin/SettingsPage.dart';
+import 'admin/StockMonitoringPage.dart';
+import 'admin/TransactionsPage.dart';
+
+// OFFLINE PAGES
+
+
+class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(body: Center(child: Text("Admin Dashboard")));
-  }
+  State<AdminPage> createState() => _AdminPageState();
 }
 
+class _AdminPageState extends State<AdminPage> {
+  int selectedIndex = 0;
+  bool isOfflineMode = false;
+  int notificationCount = 4; // example for now
+
+  // ------------------- ONLINE MENU -------------------
+  final onlineMenu = [
+    {"icon": Icons.dashboard, "label": "Dashboard"},
+    {"icon": Icons.inventory, "label": "Inventory Management"},
+    {"icon": Icons.monitor_heart, "label": "Stock Monitoring"},
+    {"icon": Icons.swap_horiz, "label": "Transactions"},
+    {"icon": Icons.file_copy, "label": "Reports"},
+    {"icon": Icons.manage_accounts, "label": "Manage Accounts"},
+    {"icon": Icons.settings, "label": "Settings"},
+  ];
+
+  // ------------------- OFFLINE MENU -------------------
+  final offlineMenu = [
+    {"icon": Icons.inventory_2, "label": "Offline Inventory"},
+    {"icon": Icons.monitor_heart, "label": "Offline Stock Monitoring"},
+    {"icon": Icons.swap_horiz, "label": "Offline Transactions"},
+    {"icon": Icons.settings, "label": "Settings"},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final menuItems = isOfflineMode ? offlineMenu : onlineMenu;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: Row(
+        children: [
+          _buildSidebar(context, menuItems),
+          _buildRightPanel(menuItems),
+        ],
+      ),
+    );
+  }
+
+  // -----------------------------------
+  // LEFT SIDEBAR
+  // -----------------------------------
+  Widget _buildSidebar(BuildContext context, List menuItems) {
+    return Container(
+      width: 260,
+      color: Colors.grey[100],
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+
+          // PROFILE
+          Column(
+            children: [
+              Column(
+                children: [
+
+                  Align(
+                    alignment: Alignment.topRight,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 10.0),
+                      child: Stack(
+                        children: [
+                          Icon(Icons.notifications, size: 30, color: Colors.green[800]),
+                          if (notificationCount > 0)
+                            Positioned(
+                              right: 0,
+                              top: -2,
+                              child: Container(
+                                padding: const EdgeInsets.all(3),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: Text(
+                                  notificationCount.toString(),
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 10),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: AssetImage("assets/JericoDeJesus.png"),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              const Text("De Jesus, Jerico",
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                isOfflineMode ? "(OFFLINE MODE)" : "Administrator",
+                style: TextStyle(
+                  color: isOfflineMode ? Colors.red : Colors.black54,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 30),
+
+          // ------------------- MENU -------------------
+          Expanded(
+            child: ListView.builder(
+              itemCount: menuItems.length,
+              itemBuilder: (context, index) {
+                final item = menuItems[index];
+                final isSelected = selectedIndex == index;
+
+                return GestureDetector(
+                  onTap: () => setState(() => selectedIndex = index),
+                  child: Container(
+                    height: 48,
+                    color: isSelected
+                        ? Colors.lightGreen[300]
+                        : Colors.transparent,
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Row(
+                      children: [
+                        Icon(item["icon"] as IconData,
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.green[800]),
+                        const SizedBox(width: 15),
+                        Text(
+                          item["label"] as String,
+                          style: TextStyle(
+                            color: isSelected
+                                ? Colors.white
+                                : Colors.green[900],
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // ------------------- UPLOAD TO ONLINE (OFFLINE ONLY) -------------------
+          if (isOfflineMode)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  // TODO: your upload logic here
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Uploading offline data to online..."),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.cloud_upload, color: Colors.white),
+                label: const Text(
+                  "Upload to Online",
+                  style: TextStyle(color: Colors.white),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue[600],
+                  minimumSize: const Size(200, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+
+          // ------------------- ONLINE / OFFLINE MODE TOGGLE -------------------
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: GestureDetector(
+              onTap: () {
+                setState(() {
+                  isOfflineMode = !isOfflineMode;
+                  selectedIndex = 0;
+                });
+              },
+              child: Container(
+                width: 200,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color: isOfflineMode ? Colors.red[300] : Colors.green[300],
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  isOfflineMode ? "OFFLINE MODE" : "ONLINE MODE",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+          ),
+
+          // ------------------- LOGOUT -------------------
+          Padding(
+            padding: const EdgeInsets.only(bottom: 25),
+            child: GestureDetector(
+              onTap: () => context.go('/'),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.logout, color: Colors.green[800]),
+                  const SizedBox(width: 8),
+                  Text("Logout", style: TextStyle(color: Colors.green[800])),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
+  // -----------------------------------
+  // RIGHT PANEL + TOP BAR & NOTIFICATION
+  // -----------------------------------
+  Widget _buildRightPanel(List menuItems) {
+    return Expanded(
+      child: Column(
+        children: [
+          // TOP BAR
+          Container(
+            height: 60,
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 20),
+                Image.asset("assets/8xLogo.png", height: 40),
+                const SizedBox(width: 15),
+
+                Expanded(
+                  child: const Text(
+                    "Provincial Government of Bulacan Pharmacy",
+                    style: TextStyle(
+                        color: Colors.green,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ),
+
+                // ------------------- NOTIFICATION ICON -------------------
+
+
+                const SizedBox(width: 20),
+
+                // ------------------- ONLINE/OFFLINE TOGGLE ------------------
+                const SizedBox(width: 20),
+              ],
+            ),
+          ),
+
+          // PAGE CONTENT
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.all(40),
+              child: _buildContent(menuItems),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // -----------------------------------
+  // CONTENT SWITCHER
+  // -----------------------------------
+  Widget _buildContent(List menuItems) {
+    if (!isOfflineMode) {
+      // ONLINE MODE
+      switch (selectedIndex) {
+        case 0:
+          return const DashboardPage();
+        case 1:
+          return const InventoryPage();
+        case 2:
+          return const StockMonitoringPage();
+        case 3:
+          return const TransactionsPage();
+        case 4:
+          return const ReportsPage();
+        case 5:
+          return const ManageAccountsPage();
+        case 6:
+          return const SettingsPage();
+      }
+    } else {
+      // OFFLINE MODE
+      switch (selectedIndex) {
+        case 0:
+          return const OfflineInventoryPage();
+        case 1:
+          return const OfflineStockMonitoringPage();
+        case 2:
+          return const OfflineTransactionsPage();
+        case 3:
+          return const SettingsPage();
+      }
+    }
+
+    return const Center(child: Text("Unknown Page"));
+  }
+}

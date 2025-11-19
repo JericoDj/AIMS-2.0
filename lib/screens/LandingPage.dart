@@ -29,50 +29,53 @@ class _LandingPageState extends State<LandingPage> {
               color: Colors.black54, // semi-transparent overlay
               child: Column(
                 children: [
+                  
+
                   Container(
                     height: MediaQuery.sizeOf(context).height * 0.9,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text("💊"),
-                        SizedBox(height: 20),
-                        Text(
-                          'AIMS 2.0',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 54,
-                          ),
+
+
+
+
+                        Container(
+                          height: MediaQuery.sizeOf(context).height * 0.5,
+                          child: Image.asset(
+                              fit: BoxFit.cover,
+                              "assets/8xlogo.png"),
                         ),
+
                         SizedBox(height: 20),
+
+
+
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           spacing: MediaQuery.sizeOf(context).width * 0.1,
                           children: [
                             GestureDetector(
-                              onTap: () {
-                                context.go('/admin');
-                              },
+                              onTap: () => context.go('/login?type=admin'),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.green,
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 padding: const EdgeInsets.all(8),
-                                child: const Text("Login as Admin", style: TextStyle(color: Colors.white)),
+                                child: Text("Login as Admin", style: TextStyle(color: Colors.white)),
                               ),
                             ),
 
                             GestureDetector(
-                              onTap: () {
-                                context.go('/user');
-                              },
+                              // onTap: () => context.go('/login?type=user'),
                               child: Container(
                                 decoration: BoxDecoration(
                                   color: Colors.green,
                                   borderRadius: BorderRadius.circular(15),
                                 ),
                                 padding: const EdgeInsets.all(8),
-                                child: const Text("Login as User", style: TextStyle(color: Colors.white)),
+                                child: Text("Login as User", style: TextStyle(color: Colors.white)),
                               ),
                             ),
                           ],

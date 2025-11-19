@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import 'AdminPage.dart';
+import 'LoginPage.dart';
 import 'UserPage.dart';
 
 final appRouter = GoRouter(
@@ -16,8 +17,16 @@ final appRouter = GoRouter(
       builder: (context, state) => const AdminPage(),
     ),
     GoRoute(
+      path: '/login',
+      builder: (context, state) {
+        final type = state.uri.queryParameters['type'] ?? 'user';
+        return LoginPage(type: type);
+      },
+    ),
+    GoRoute(
       path: '/user',
       builder: (context, state) => const UserPage(),
     ),
+
   ],
 );
