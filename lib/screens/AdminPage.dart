@@ -28,6 +28,103 @@ class _AdminPageState extends State<AdminPage> {
   bool isOfflineMode = false;
   int notificationCount = 4; // example for now
 
+
+  List<Map<String, dynamic>> notifications = [
+    {
+      "title": "Low Stock Alert",
+      "message": "Amoxicillin 500mg is below minimum threshold.",
+      "time": "10:45 AM",
+    },
+    {
+      "title": "New Transaction",
+      "message": "A new transaction has been recorded.",
+      "time": "9:20 AM",
+    },
+    {
+      "title": "Sync Completed",
+      "message": "Offline data synced successfully.",
+      "time": "Yesterday",
+    },
+  ];
+  void _showNotificationPanel() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (_) {
+        return Dialog(
+          insetPadding: EdgeInsets.only(
+            top: MediaQuery.sizeOf(context).width * 0.025,
+            left: MediaQuery.sizeOf(context).width * 0.12,
+          ),
+          alignment: Alignment.topLeft,
+          child: Container(
+            width: MediaQuery.sizeOf(context).width * .30,
+            padding: const EdgeInsets.all(15),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // ------------------ HEADER WITH CLOSE BUTTON ------------------
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      "Notifications",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const Icon(Icons.close, size: 22),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 15),
+
+                // ------------------ EMPTY OR LIST ------------------
+                if (notifications.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text("No notifications available."),
+                  )
+                else
+                  ...notifications.map((n) {
+                    return Column(
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.notifications_active, color: Colors.green),
+                          title: Text(
+                            n["title"],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          subtitle: Text(n["message"]),
+                          trailing: Text(
+                            n["time"],
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                        const Divider(height: 5),
+                      ],
+                    );
+                  }).toList(),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
   // ------------------- ONLINE MENU -------------------
   final onlineMenu = [
     {"icon": Icons.dashboard, "label": "Dashboard"},
@@ -83,27 +180,29 @@ class _AdminPageState extends State<AdminPage> {
                     alignment: Alignment.topRight,
                     child: Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 10.0),
-                      child: Stack(
-                        children: [
-                          Icon(Icons.notifications, size: 30, color: Colors.green[800]),
-                          if (notificationCount > 0)
-                            Positioned(
-                              right: 0,
-                              top: -2,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: BoxDecoration(
-                                  color: Colors.red,
-                                  borderRadius: BorderRadius.circular(15),
-                                ),
-                                child: Text(
-                                  notificationCount.toString(),
-                                  style: const TextStyle(
-                                      color: Colors.white, fontSize: 10),
+                      child: GestureDetector(
+                        onTap: _showNotificationPanel,
+                        child: Stack(
+                          children: [
+                            Icon(Icons.notifications, size: 30, color: Colors.green[800]),
+                            if (notificationCount > 0)
+                              Positioned(
+                                right: 0,
+                                top: -2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: BoxDecoration(
+                                    color: Colors.red,
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  child: Text(
+                                    notificationCount.toString(),
+                                    style: const TextStyle(color: Colors.white, fontSize: 10),
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
