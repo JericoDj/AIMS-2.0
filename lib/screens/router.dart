@@ -14,7 +14,12 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/admin',
-      builder: (context, state) => const AdminPage(),
+      builder: (_, __) => const AdminPage(),
+    ),
+
+    GoRoute(
+      path: '/admin-offline',
+      builder: (_, __) => const AdminPage(forceOffline: true),
     ),
     GoRoute(
       path: '/login',

@@ -2,14 +2,22 @@ import 'package:aims2frontend/providers/auth_provider.dart';
 
 import 'package:aims2frontend/screens/router.dart';
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 
 void main() {
+
+
+  WidgetsFlutterBinding.ensureInitialized(); // ✅ REQUIRED
+  GetStorage.init();
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+
+
+
   const MyApp({super.key});
 
   @override

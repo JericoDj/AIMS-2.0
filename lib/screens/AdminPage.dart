@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:get_storage/get_storage.dart';
 import 'package:go_router/go_router.dart';
 
 // IMPORT ALL SUBPAGES
@@ -17,16 +18,41 @@ import 'admin/TransactionsPage.dart';
 
 
 class AdminPage extends StatefulWidget {
-  const AdminPage({super.key});
+  const AdminPage({super.key, this.forceOffline});
+  final bool? forceOffline;
+
+
+
 
   @override
   State<AdminPage> createState() => _AdminPageState();
+
 }
+
+
+
 
 class _AdminPageState extends State<AdminPage> {
   int selectedIndex = 0;
   bool isOfflineMode = false;
+
+
   int notificationCount = 4; // example for now
+
+
+  final GetStorage box = GetStorage();
+
+  bool _hasValidOfflineUser() {
+    final data = box.read('offline_user');
+
+    if (data == null) return false;
+
+    if (data is! Map) return false;
+
+    return data['uid'] != null &&
+        data['email'] != null &&
+        data['name'] != null;
+  }
 
 
   List<Map<String, dynamic>> notifications = [
@@ -122,6 +148,16 @@ class _AdminPageState extends State<AdminPage> {
         );
       },
     );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+
+    if (widget.forceOffline == true) {
+      isOfflineMode = true;
+      selectedIndex = 0;
+    }
   }
 
 
@@ -300,28 +336,59 @@ class _AdminPageState extends State<AdminPage> {
             padding: const EdgeInsets.only(bottom: 20),
             child: GestureDetector(
               onTap: () {
+                // 🔒 Forced offline → do nothing
+                if (widget.forceOffline == true) return;
+
+                // 🔍 Validate before entering offline
+                if (!isOfflineMode) {
+                  final isValid = _hasValidOfflineUser();
+
+                  if (!isValid) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "Offline mode unavailable. No cached user found.",
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+                }
+
                 setState(() {
                   isOfflineMode = !isOfflineMode;
                   selectedIndex = 0;
                 });
               },
+
               child: Container(
                 width: 200,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: isOfflineMode ? Colors.red[300] : Colors.green[300],
+                  color: widget.forceOffline == true
+                      ? Colors.grey
+                      : isOfflineMode
+                      ? Colors.red[300]
+                      : Colors.green[300],
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Text(
-                  isOfflineMode ? "OFFLINE MODE" : "ONLINE MODE",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
+                child: Center(
+                  child: Text(
+                    widget.forceOffline == true
+                        ? "OFFLINE MODE (LOCKED)"
+                        : isOfflineMode
+                        ? "OFFLINE MODE"
+                        : "ONLINE MODE",
+                    style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
             ),
           ),
+
 
           // ------------------- LOGOUT -------------------
           Padding(
