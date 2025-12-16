@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/ReportsButton.dart';
+
 class StockMonitoringPage extends StatelessWidget {
   const StockMonitoringPage({super.key});
 
@@ -11,13 +13,23 @@ class StockMonitoringPage extends StatelessWidget {
         const SizedBox(height: 10),
 
         // ---------------- PAGE TITLE ----------------
-        const Text(
-          "Stock Monitoring",
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+
+            const Text(
+              "Stock Monitoring",
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+
+            ReportButton(
+              label: "Inventory\nReport",
+            ),
+          ],
         ),
 
         const SizedBox(height: 20),

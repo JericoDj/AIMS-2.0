@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../dialogs/create_account_dialog.dart';
+import '../../providers/accounts_provider.dart';
 
 class ManageAccountsPage extends StatelessWidget {
   const ManageAccountsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+
+    final accounts = context.watch<AccountsProvider>().accounts;
+
+
     final users = [
       {
         "name": "Esquilador, Mhiel James",
@@ -89,7 +97,12 @@ class ManageAccountsPage extends StatelessWidget {
 
                 // CREATE ACCOUNT BUTTON
                 GestureDetector(
-                  onTap: () {},
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const CreateAccountDialog(),
+                    );
+                  },
                   child: Container(
                     height: 70,
                     alignment: Alignment.center,
@@ -102,7 +115,7 @@ class ManageAccountsPage extends StatelessWidget {
                       ),
                     ),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -129,6 +142,7 @@ class _UserRow extends StatelessWidget {
     required this.onEdit,
     required this.onRemove,
   });
+
 
   @override
   Widget build(BuildContext context) {

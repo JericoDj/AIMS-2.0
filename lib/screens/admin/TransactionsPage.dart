@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'widgets/ReportsButton.dart';
+
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key});
 
@@ -11,13 +13,22 @@ class TransactionsPage extends StatelessWidget {
         const SizedBox(height: 10),
 
         // ---------------- PAGE TITLE ----------------
-        const Text(
-          "Transactions",
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+
+            const Text(
+              "Transactions",
+              style: TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            ReportButton(
+              label: "Transaction\nReport",
+            ),
+          ],
         ),
 
         const SizedBox(height: 20),

@@ -9,7 +9,7 @@ import 'admin/ManageAccountPage.dart';
 import 'admin/Offline/OfflineInventoryPage.dart';
 import 'admin/Offline/OfflineStockMonitoringPage.dart';
 import 'admin/Offline/OfflineTransactionsPage.dart';
-import 'admin/ReportsPage.dart';
+
 import 'admin/SettingsPage.dart';
 import 'admin/StockMonitoringPage.dart';
 import 'admin/TransactionsPage.dart';
@@ -167,7 +167,7 @@ class _AdminPageState extends State<AdminPage> {
     {"icon": Icons.inventory, "label": "Inventory Management"},
     {"icon": Icons.monitor_heart, "label": "Stock Monitoring"},
     {"icon": Icons.swap_horiz, "label": "Transactions"},
-    {"icon": Icons.file_copy, "label": "Reports"},
+
     {"icon": Icons.manage_accounts, "label": "Manage Accounts"},
     {"icon": Icons.settings, "label": "Settings"},
   ];
@@ -479,10 +479,8 @@ class _AdminPageState extends State<AdminPage> {
         case 3:
           return const TransactionsPage();
         case 4:
-          return const ReportsPage();
-        case 5:
           return const ManageAccountsPage();
-        case 6:
+        case 5:
           return const SettingsPage();
       }
     } else {

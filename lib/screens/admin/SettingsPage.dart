@@ -14,22 +14,17 @@ class SettingsPage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
               SettingsButton(label: "User\nGuide"),
+
               SizedBox(width: 60),
-              SettingsButton(label: "Back Up\nand Reset"),
+              SettingsButton(label: "System\nVersion Info."),
+
             ],
           ),
 
           const SizedBox(height: 60),
 
           // ---------------- BOTTOM ROW ----------------
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              SettingsButton(label: "System\nConfiguration"),
-              SizedBox(width: 60),
-              SettingsButton(label: "System\nVersion Info."),
-            ],
-          ),
+
         ],
       ),
     );

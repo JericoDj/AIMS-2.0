@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.leos.aims" "\0"
-            VALUE "FileDescription", "aims2frontend" "\0"
+            VALUE "CompanyName", "com.leos.aims2" "\0"
+            VALUE "FileDescription", "aims2" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "aims2frontend" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2025 com.leos.aims. All rights reserved." "\0"
-            VALUE "OriginalFilename", "aims2frontend.exe" "\0"
-            VALUE "ProductName", "aims2frontend" "\0"
+            VALUE "InternalName", "aims2" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2025 com.leos.aims2. All rights reserved." "\0"
+            VALUE "OriginalFilename", "aims2.exe" "\0"
+            VALUE "ProductName", "aims2" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

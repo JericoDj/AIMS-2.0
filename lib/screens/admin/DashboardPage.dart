@@ -31,11 +31,60 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 25),
 
+              SizedBox(
+                height: maxHeight * 0.50,
+                child: Row(
+                  children: [
+                    // LEFT — RECENT TRANSACTIONS
+
+
+
+
+                    // RIGHT — STOCK CHART
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(25),
+                        decoration: BoxDecoration(
+                          border: Border.all(
+                              color: Colors.green[400]!,
+                            width: 4
+
+                          ),
+
+                          borderRadius: BorderRadius.circular(25),
+                        ),
+                        child: Column(
+                          children: [
+                            const Text(
+                              "Stock Overview",
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 25),
+
+                            Expanded(
+                              child: CustomPaint(
+                                painter: StockChartPainter(),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 25),
+
               // ---------------- TOP SUMMARY CARDS ----------------
               LayoutBuilder(
                 builder: (context, constraints) {
                   double cardWidth = constraints.maxWidth / 4 - 20;
-                  double cardHeight = screen.height * 0.18;
+                  double cardHeight = screen.height * 0.145;
 
                   return Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -80,100 +129,9 @@ class DashboardPage extends StatelessWidget {
               const SizedBox(height: 40),
 
               // ---------------- MIDDLE SECTION ----------------
-              SizedBox(
-                height: maxHeight * 0.50,
-                child: Row(
-                  children: [
-                    // LEFT — RECENT TRANSACTIONS
-                    Expanded(
-                      flex: 2,
-                      child: Container(
-                        padding: const EdgeInsets.all(25),
-                        decoration: BoxDecoration(
-                          border: Border.all(
-                              width: 4,
-                              color: Colors.green[400]!),
 
-                          color: const Color(0xFFFFFFFF),
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              "Recent Transactions",
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            const SizedBox(height: 20),
 
-                            Expanded(
-                              child: ListView(
-                                children: const [
-                                  RecentTransactionRow(
-                                    item: "Paracetamol",
-                                    action: "Added",
-                                    user: "Jerico",
-                                    qty: "100",
-                                  ),
-                                  RecentTransactionRow(
-                                    item: "Biogesic",
-                                    action: "Removed",
-                                    user: "Baby Jane",
-                                    qty: "50",
-                                  ),
-                                  RecentTransactionRow(
-                                    item: "Vitamin C",
-                                    action: "Added",
-                                    user: "Mhiel",
-                                    qty: "200",
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
 
-                    const SizedBox(width: 30),
-
-                    // RIGHT — STOCK CHART
-                    Expanded(
-                      flex: 1,
-                      child: Container(
-                        padding: const EdgeInsets.all(25),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFD0E8B5),
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: Column(
-                          children: [
-                            const Text(
-                              "Stock Overview",
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            const SizedBox(height: 25),
-
-                            Expanded(
-                              child: CustomPaint(
-                                painter: StockChartPainter(),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           ),
         ),
@@ -225,7 +183,7 @@ class DashboardStatCard extends StatelessWidget {
           Text(
             value,
             style: TextStyle(
-              fontSize: height * 0.22,
+              fontSize: height * 0.15,
               fontWeight: FontWeight.bold,
               color: Colors.green[900],
             ),
@@ -233,7 +191,7 @@ class DashboardStatCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: height * 0.10,
+              fontSize: height * 0.12,
               color: Colors.green[900],
             ),
           ),

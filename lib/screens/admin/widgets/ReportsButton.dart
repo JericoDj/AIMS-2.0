@@ -1,27 +1,5 @@
 import 'package:flutter/material.dart';
 
-class ReportsPage extends StatelessWidget {
-  const ReportsPage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          ReportButton(
-            label: "Inventory\nReport",
-          ),
-          SizedBox(width: 80),
-          ReportButton(
-            label: "Transaction\nReport",
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 //
 // ---------------- REUSABLE REPORT BUTTON ----------------
 //
@@ -40,11 +18,11 @@ class ReportButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ?? () {},
       child: Container(
-        width: 260,
-        height: 160,
+        width: MediaQuery.sizeOf(context).width * 0.1,
+        height: MediaQuery.sizeOf(context).width * 0.06,
         decoration: BoxDecoration(
           color: const Color(0xFFD0E8B5), // light green
-          borderRadius: BorderRadius.circular(35),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Center(
           child: Text(
@@ -52,7 +30,7 @@ class ReportButton extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: Colors.green[900],
-              fontSize: 26,
+              fontSize:MediaQuery.sizeOf(context).width * 0.012,
               fontWeight: FontWeight.w700,
             ),
           ),

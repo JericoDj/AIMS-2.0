@@ -1,6 +1,6 @@
-# aims2frontend
+# aims2
 
-AIMS Frontend
+A new Flutter project.
 
 ## Getting Started
 

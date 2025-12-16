@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'DashboardPage.dart';
+
 class InventoryPage extends StatelessWidget {
   const InventoryPage({super.key});
 
@@ -25,29 +27,84 @@ class InventoryPage extends StatelessWidget {
               SizedBox(width: 40),
               InventoryButton(
                 icon: Icons.remove_circle_outline,
-                label: "Delete Stock",
+                label: "Dispense Stock",
               ),
             ],
           ),
-
-          const SizedBox(height: 40),
 
           // ---------------- BOTTOM ROW ----------------
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              InventoryButton(
-                icon: Icons.edit_note,
-                label: "Create Item",
-              ),
-              SizedBox(width: 40),
-              InventoryButton(
-                icon: Icons.delete,
-                label: "Remove Item",
-              ),
-            ],
+
+
+          SizedBox(
+            height:  MediaQuery.sizeOf(context).height * 0.05,
+          ),
+
+          SizedBox(
+            height: MediaQuery.sizeOf(context).height * 0.55,
+            child: Row(
+              children: [
+                // LEFT — RECENT TRANSACTIONS
+                Expanded(
+                  flex: 2,
+                  child: Container(
+                    padding: const EdgeInsets.all(25),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          width: 4,
+                          color: Colors.green[400]!),
+
+                      color: const Color(0xFFFFFFFF),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          "Recent Transactions",
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        Expanded(
+                          child: ListView(
+                            children: const [
+                              RecentTransactionRow(
+                                item: "Paracetamol",
+                                action: "Added",
+                                user: "Jerico",
+                                qty: "100",
+                              ),
+                              RecentTransactionRow(
+                                item: "Biogesic",
+                                action: "Removed",
+                                user: "Baby Jane",
+                                qty: "50",
+                              ),
+                              RecentTransactionRow(
+                                item: "Vitamin C",
+                                action: "Added",
+                                user: "Mhiel",
+                                qty: "200",
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(width: 30),
+              ],
+            ),
           ),
         ],
+
+
       ),
     );
   }

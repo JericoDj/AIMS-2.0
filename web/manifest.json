@@ -1,11 +1,11 @@
 {
-    "name": "aims2frontend",
-    "short_name": "aims2frontend",
+    "name": "aims2",
+    "short_name": "aims2",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "AIMS Frontend",
+    "description": "A new Flutter project.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
