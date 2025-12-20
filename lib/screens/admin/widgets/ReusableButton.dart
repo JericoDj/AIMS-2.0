@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 //
 // ---------------- REUSABLE REPORT BUTTON ----------------
 //
-class ReportButton extends StatelessWidget {
+class ReusableButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
 
-  const ReportButton({
+  const ReusableButton({
     super.key,
     required this.label,
     this.onTap,

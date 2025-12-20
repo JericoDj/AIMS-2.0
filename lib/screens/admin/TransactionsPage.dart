@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'widgets/ReportsButton.dart';
+import 'widgets/ReusableButton.dart';
 
 class TransactionsPage extends StatelessWidget {
   const TransactionsPage({super.key});
@@ -25,7 +25,7 @@ class TransactionsPage extends StatelessWidget {
                 color: Colors.green,
               ),
             ),
-            ReportButton(
+            ReusableButton(
               label: "Transaction\nReport",
             ),
           ],

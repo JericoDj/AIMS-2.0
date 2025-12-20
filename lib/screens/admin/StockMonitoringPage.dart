@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-import 'widgets/ReportsButton.dart';
+import 'dialogs/AddItemDialog.dart';
+import 'dialogs/InventoryDialog.dart';
+import 'widgets/ReusableButton.dart';
 
 class StockMonitoringPage extends StatelessWidget {
   const StockMonitoringPage({super.key});
@@ -26,8 +28,31 @@ class StockMonitoringPage extends StatelessWidget {
               ),
             ),
 
-            ReportButton(
-              label: "Inventory\nReport",
+            Row(
+              children: [
+
+                ReusableButton(
+                  label: "Add\nItem",
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const AddItemDialog(),
+                    );
+                  },
+                ),
+
+                const SizedBox(width: 10),
+
+                ReusableButton(
+                  label: "Inventory\nReport",
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const InventoryReportDialog(),
+                    );
+                  },
+                ),
+              ],
             ),
           ],
         ),
