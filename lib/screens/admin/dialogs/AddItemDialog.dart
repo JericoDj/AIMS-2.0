@@ -40,8 +40,11 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
     final name = _nameCtrl.text.trim();
     print(name);
+    print("heres the name");
     final quantity = int.tryParse(_qtyCtrl.text);
+
     print(quantity);
+    print("heres the quantity");
 
     if (name.isEmpty ||
         _category == null ||
@@ -65,7 +68,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
       print("checking item name");
       final exists = await inventory.itemNameExists(name);
 
+
+
       if (exists) {
+        print("item already exists");
         messenger?.showSnackBar(
           const SnackBar(
             content: Text('Item already exists'),
@@ -80,6 +86,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         name: name,
         category: _category!.name,
       );
+
 
 
       print("item created");

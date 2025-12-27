@@ -47,12 +47,13 @@ dependencies:
   firebase_auth: ^6.1.3
   firebase_storage: ^13.0.5
 
-
+# creation, encryption
   barcode: ^2.2.9
   encrypt: ^5.0.3
   barcode_image: ^2.0.3
   image: ^4.7.2
-
+#  decoding
+  flutter_barcode_sdk: ^3.1.1
 
   barcode_widget: ^2.0.4
 

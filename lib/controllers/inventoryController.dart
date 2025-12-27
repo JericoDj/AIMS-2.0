@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 
 import '../models/TransactionModel.dart';
 import 'barCodeController.dart';
+import 'barCodeDecoderController.dart';
 import 'inventoryTransactionController.dart';
 
 class InventoryController {
@@ -24,10 +25,14 @@ class InventoryController {
     required String name,
     required String category,
   }) async {
+    print("starting to generate the barcode");
+
     // 1️⃣ Generate encrypted barcode value
     final barcodeValue = BarcodeController.generate(name);
+    print("ENCRYPTED VALUE:");
+    print(barcodeValue);
 
-    // 2️⃣ Create Firestore item FIRST (to get itemId)
+    // 2️⃣ Create Firestore item FIRST
     final docRef = await _firestore.collection('items').add({
       'name': name,
       'name_key': normalizeItemName(name),
@@ -56,10 +61,47 @@ class InventoryController {
     // 5️⃣ Get download URL
     final barcodeImageUrl = await storageRef.getDownloadURL();
 
-    // 6️⃣ Save barcode image URL back to Firestore
+    // 6️⃣ Save barcode image URL
     await docRef.update({
       'barcode_image_url': barcodeImageUrl,
     });
+
+    // =====================================
+    // 🔍 DEBUG ONLY: READ + DECRYPT PNG
+    // (flutter_barcode_sdk – SAFE & ASYNC)
+    // =====================================
+    try {
+      // Ensure SDK is initialized once
+      await BarcodeImageDecoder.init();
+      print("done initializing");
+
+      // Decode barcode value from PNG image
+      final decodedFromPng =
+      await BarcodeImageDecoder.decodeFromPng(barcodePng);
+
+      if (decodedFromPng != null) {
+        print("DECODED FROM PNG:");
+        print(decodedFromPng);
+
+        // Decrypt decoded value
+        final decryptedFromPng =
+        BarcodeController.decrypt(decodedFromPng);
+        print("DECRYPTED FROM PNG:");
+        print(decryptedFromPng);
+
+        // Optional validation (debug only)
+        assert(
+        decryptedFromPng == BarcodeController.normalize(name),
+        '❌ PNG barcode decrypt mismatch',
+        );
+      } else {
+        print('⚠️ No barcode detected in PNG');
+      }
+    } catch (e) {
+      // Non-fatal — decoding may fail for some formats
+      debugPrint('⚠️ Barcode PNG decode skipped: $e');
+    }
+    // =====================================
 
     // 7️⃣ Log transaction
     await InventoryTransactionController().log(

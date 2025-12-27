@@ -4,66 +4,69 @@ import 'package:encrypt/encrypt.dart';
 import 'package:barcode/barcode.dart';
 import 'package:barcode_image/barcode_image.dart';
 import 'package:image/image.dart' as img;
-
 class BarcodeController {
-  // ================= SECURITY CONFIG =================
   static final Key _key =
-  Key.fromUtf8('AIMS-INVENTORY-BARCODE-KEY-32');
-
-  static final IV _iv =
-  IV.fromUtf8('AIMS-INVENTORY-IV'); // 16 chars
+  Key.fromUtf8('AIMSINVENTORYBARCODEKEY012345678');
 
   static final Encrypter _encrypter =
   Encrypter(AES(_key, mode: AESMode.cbc));
 
-  // ================= NORMALIZATION =================
-  static String normalize(String name) {
-    return name
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '')
-        .trim();
-  }
+  static String normalize(String name) =>
+      name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 
-  // ================= ENCRYPT =================
-  /// Encrypt item name → barcode payload (offline-safe)
   static String generate(String itemName) {
-    final normalized = normalize(itemName);
-    return _encrypter.encrypt(normalized, iv: _iv).base64;
+    final iv = IV.fromSecureRandom(16);
+    print('IV(base64): ${iv.base64}');
+    print('INPUT: ${normalize(itemName)}');
+
+    try {
+      print('KEY BYTES: ${_key.bytes.length}');
+      print('IV BYTES: ${iv.bytes.length}');
+
+      final encrypted =
+      _encrypter.encrypt(normalize(itemName), iv: iv);
+
+      print('ENC(base64): ${encrypted.base64}');
+      return '${iv.base64}:${encrypted.base64}';
+    } catch (e, s) {
+      print('❌ FAILED AT ENCRYPT');
+      print(e);
+      print(s);
+      rethrow;
+    }
   }
 
-  // ================= DECRYPT =================
-  /// Decrypt barcode payload → normalized item name
-  static String decrypt(String barcodeValue) {
+  static String decrypt(String payload) {
+    final parts = payload.split(':');
     return _encrypter.decrypt(
-      Encrypted.fromBase64(barcodeValue),
-      iv: _iv,
+      Encrypted.fromBase64(parts[1]),
+      iv: IV.fromBase64(parts[0]),
     );
   }
 
-  // ================= BARCODE IMAGE (PNG) =================
-  /// Generates a PNG barcode image as Uint8List
-  static Uint8List generateBarcodePng(
-      String barcodeValue, {
-        int width = 300,
-        int height = 100,
-      }) {
-    final barcode = Barcode.code128();
 
-    // 1️⃣ Create image buffer
+  /// Barcode image
+  static Uint8List generateBarcodePng(String barcodeValue, {
+    int width = 800,
+    int height = 200,
+  }) {
+    final barcode = Barcode.code128();
     final image = img.Image(width: width, height: height);
 
-    // 2️⃣ Draw barcode into image
+    // ✅ Fill background with white
+    img.fill(image, color: img.ColorRgb8(255, 255, 255));
+
+    // ✅ Draw barcode (black bars on white background)
     drawBarcode(
       image,
       barcode,
       barcodeValue,
-      x: 0,
-      y: 0,
       width: width,
       height: height,
     );
 
-    // 3️⃣ Encode PNG
     return Uint8List.fromList(img.encodePng(image));
   }
+
+
 }
