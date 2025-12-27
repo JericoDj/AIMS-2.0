@@ -6,12 +6,25 @@ class ItemModel {
   final String id;
   final String name;
   final String category;
+
+  /// 🔐 Encrypted barcode value
+  final String? barcode;
+
+  /// 🖼 Barcode image URL (Firebase Storage)
+  final String? barcodeImageUrl;
+
+  /// 🔍 Normalized name (vitamin c → vitaminc)
+  final String? nameNormalized;
+
   final List<StockBatch> batches;
 
   ItemModel({
     required this.id,
     required this.name,
     required this.category,
+    this.barcode,
+    this.barcodeImageUrl,
+    this.nameNormalized,
     required this.batches,
   });
 
@@ -20,10 +33,13 @@ class ItemModel {
 
     return ItemModel(
       id: doc.id,
-      name: data['name'],
-      category: data['category'],
+      name: data['name'] ?? '',
+      category: data['category'] ?? '',
+      barcode: data['barcode'],
+      barcodeImageUrl: data['barcode_image_url'],
+      nameNormalized: data['name_key'],
       batches: (data['batches'] as List? ?? [])
-          .map((e) => StockBatch.fromMap(e))
+          .map((e) => StockBatch.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }
@@ -32,7 +48,7 @@ class ItemModel {
   int get totalStock =>
       batches.fold(0, (sum, b) => sum + b.quantity);
 
-  // ================= FIFO (sorted by expiry) =================
+  // ================= FIFO =================
   List<StockBatch> get fifoBatches {
     final sorted = [...batches];
     sorted.sort((a, b) => a.expiry.compareTo(b.expiry));
@@ -42,16 +58,12 @@ class ItemModel {
   // ================= NEAREST EXPIRY =================
   DateTime? get nearestExpiry {
     if (batches.isEmpty) return null;
-
-    final sorted = [...batches];
-    sorted.sort((a, b) => a.expiry.compareTo(b.expiry));
-    return sorted.first.expiry;
+    return fifoBatches.first.expiry;
   }
 
-  // ================= FORMATTED EXPIRY (UI) =================
   String get nearestExpiryFormatted {
     final exp = nearestExpiry;
     if (exp == null) return '-';
-    return exp.toIso8601String().split('T').first; // YYYY-MM-DD
+    return exp.toIso8601String().split('T').first;
   }
 }

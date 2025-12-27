@@ -1,11 +1,16 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/TransactionModel.dart';
+import 'barCodeController.dart';
 import 'inventoryTransactionController.dart';
 
 class InventoryController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   String normalizeItemName(String input) {
     return input
@@ -19,23 +24,53 @@ class InventoryController {
     required String name,
     required String category,
   }) async {
-    final doc = await _firestore.collection('items').add({
+    // 1️⃣ Generate encrypted barcode value
+    final barcodeValue = BarcodeController.generate(name);
+
+    // 2️⃣ Create Firestore item FIRST (to get itemId)
+    final docRef = await _firestore.collection('items').add({
       'name': name,
       'name_key': normalizeItemName(name),
+      'barcode': barcodeValue,
       'category': category,
       'batches': [],
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
+    final itemId = docRef.id;
+
+    // 3️⃣ Generate barcode PNG
+    final Uint8List barcodePng =
+    BarcodeController.generateBarcodePng(barcodeValue);
+
+    // 4️⃣ Upload to Firebase Storage
+    final storageRef =
+    _storage.ref().child('items/$itemId/barcode.png');
+
+    await storageRef.putData(
+      barcodePng,
+      SettableMetadata(contentType: 'image/png'),
+    );
+
+    // 5️⃣ Get download URL
+    final barcodeImageUrl = await storageRef.getDownloadURL();
+
+    // 6️⃣ Save barcode image URL back to Firestore
+    await docRef.update({
+      'barcode_image_url': barcodeImageUrl,
+    });
+
+    // 7️⃣ Log transaction
     await InventoryTransactionController().log(
       type: TransactionType.createItem,
-      itemId: doc.id,
+      itemId: itemId,
       itemName: name,
     );
 
-    return doc.id;
+    return itemId;
   }
+
 
   Future<bool> itemNameExists(String name) async {
     final snapshot = await _firestore

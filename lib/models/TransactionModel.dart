@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum TransactionType {
-  createItem,
   addStock,
   dispense,
+  createItem,
   deleteItem,
-  sync,
 }
 
 class InventoryTransaction {
@@ -15,6 +14,9 @@ class InventoryTransaction {
   final String itemName;
   final int? quantity;
   final DateTime? expiry;
+  final String? userId;
+  final String? userName;
+  final String? userRole;
   final String source;
   final DateTime timestamp;
 
@@ -25,19 +27,32 @@ class InventoryTransaction {
     required this.itemName,
     this.quantity,
     this.expiry,
+    this.userId,
+    this.userName,
+    this.userRole,
     required this.source,
     required this.timestamp,
   });
 
-  Map<String, dynamic> toMap() {
-    return {
-      'type': type.name.toUpperCase(),
-      'itemId': itemId,
-      'itemName': itemName,
-      'quantity': quantity,
-      'expiry': expiry?.toIso8601String(),
-      'source': source,
-      'timestamp': FieldValue.serverTimestamp(),
-    };
+  factory InventoryTransaction.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+
+    return InventoryTransaction(
+      id: doc.id,
+      type: TransactionType.values.firstWhere(
+            (e) => e.name.toUpperCase() == data['type'],
+      ),
+      itemId: data['itemId'],
+      itemName: data['itemName'],
+      quantity: data['quantity'],
+      expiry: data['expiry'] != null
+          ? DateTime.parse(data['expiry'])
+          : null,
+      userId: data['userId'],
+      userName: data['userName'],
+      userRole: data['userRole'],
+      source: data['source'] ?? 'ONLINE',
+      timestamp: (data['timestamp'] as Timestamp).toDate(),
+    );
   }
 }

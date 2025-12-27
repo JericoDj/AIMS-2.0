@@ -3,12 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../controllers/itemsController.dart';
+import '../../../controllers/inventoryController.dart';
 import '../../../providers/items_provider.dart';
 import '../../../utils/enums/item_enum.dart';
 
 class AddItemDialog extends StatefulWidget {
-
   final BuildContext parentContext;
   const AddItemDialog({
     required this.parentContext,
@@ -40,7 +39,9 @@ class _AddItemDialogState extends State<AddItemDialog> {
     final messenger = ScaffoldMessenger.maybeOf(context);
 
     final name = _nameCtrl.text.trim();
+    print(name);
     final quantity = int.tryParse(_qtyCtrl.text);
+    print(quantity);
 
     if (name.isEmpty ||
         _category == null ||

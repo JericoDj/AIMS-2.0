@@ -1,0 +1,91 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+import '../models/TransactionModel.dart';
+
+class TransactionsProvider extends ChangeNotifier {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  final List<InventoryTransaction> _transactions = [];
+  bool _loading = false;
+  bool _hasMore = true;
+
+  static const int _limit = 20;
+  DocumentSnapshot? _lastDoc;
+
+  /// ---------------- GETTERS ----------------
+  List<InventoryTransaction> get transactions =>
+      List.unmodifiable(_transactions);
+
+  bool get loading => _loading;
+  bool get hasMore => _hasMore;
+
+  /// ---------------- FETCH ----------------
+  Future<void> fetchTransactions({bool refresh = false}) async {
+    if (_loading) return;
+
+    if (refresh) {
+      _transactions.clear();
+      _lastDoc = null;
+      _hasMore = true;
+      notifyListeners();
+    }
+
+    if (!_hasMore) return;
+
+    _loading = true;
+    notifyListeners();
+
+    Query query = _firestore
+        .collection('transactions')
+        .orderBy('timestamp', descending: true)
+        .limit(_limit);
+
+    if (_lastDoc != null) {
+      query = query.startAfterDocument(_lastDoc!);
+    }
+
+    final snapshot = await query.get();
+
+    if (snapshot.docs.isNotEmpty) {
+      _lastDoc = snapshot.docs.last;
+
+      _transactions.addAll(
+        snapshot.docs.map(
+              (doc) => InventoryTransaction.fromFirestore(doc),
+        ),
+      );
+    }
+
+    if (snapshot.docs.length < _limit) {
+      _hasMore = false;
+    }
+
+    _loading = false;
+    notifyListeners();
+  }
+
+  /// ---------------- REALTIME (OPTIONAL) ----------------
+  Stream<List<InventoryTransaction>> watchLatest({int limit = 10}) {
+    return _firestore
+        .collection('transactions')
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .snapshots()
+        .map(
+          (snap) => snap.docs
+          .map((e) => InventoryTransaction.fromFirestore(e))
+          .toList(),
+    );
+  }
+
+  /// ---------------- HELPERS ----------------
+  InventoryTransaction? get latest =>
+      _transactions.isNotEmpty ? _transactions.first : null;
+
+  List<InventoryTransaction> byType(TransactionType type) =>
+      _transactions.where((t) => t.type == type).toList();
+
+  List<InventoryTransaction> byUser(String userId) =>
+      _transactions.where((t) => t.userId == userId).toList();
+}
