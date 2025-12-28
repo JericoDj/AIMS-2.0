@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../models/TransactionModel.dart';
+import '../../providers/transactions_provider.dart';
+import '../../utils/enums/stock_actions_enum.dart';
 import 'DashboardPage.dart';
+import 'dialogs/StockActionDialog.dart';
 
 class InventoryPage extends StatelessWidget {
   const InventoryPage({super.key});
@@ -12,27 +17,41 @@ class InventoryPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // ---------------- TOP ROW ----------------
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: const [
-              InventoryButton(
-                icon: Icons.search,
-                label: "View Stock",
-              ),
-              SizedBox(width: 40),
-              InventoryButton(
-                icon: Icons.add,
-                label: "Add Stock",
-              ),
-              SizedBox(width: 40),
-              InventoryButton(
-                icon: Icons.remove_circle_outline,
-                label: "Dispense Stock",
-              ),
-            ],
+        Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          InventoryButton(
+            icon: Icons.search,
+            label: "View Stock",
+            onTap: () {
+              _openStockDialog(context, StockActionMode.view);
+            },
           ),
 
-          // ---------------- BOTTOM ROW ----------------
+          const SizedBox(width: 40),
+
+          InventoryButton(
+            icon: Icons.add,
+            label: "Add Stock",
+            onTap: () {
+              _openStockDialog(context, StockActionMode.add);
+            },
+          ),
+
+          const SizedBox(width: 40),
+
+          InventoryButton(
+            icon: Icons.remove_circle_outline,
+            label: "Dispense Stock",
+            onTap: () {
+              _openStockDialog(context, StockActionMode.dispense);
+            },
+          ),
+        ],
+      ),
+
+
+        // ---------------- BOTTOM ROW ----------------
 
 
           SizedBox(
@@ -70,29 +89,47 @@ class InventoryPage extends StatelessWidget {
                         const SizedBox(height: 20),
 
                         Expanded(
-                          child: ListView(
-                            children: const [
-                              RecentTransactionRow(
-                                item: "Paracetamol",
-                                action: "Added",
-                                user: "Jerico",
-                                qty: "100",
-                              ),
-                              RecentTransactionRow(
-                                item: "Biogesic",
-                                action: "Removed",
-                                user: "Baby Jane",
-                                qty: "50",
-                              ),
-                              RecentTransactionRow(
-                                item: "Vitamin C",
-                                action: "Added",
-                                user: "Mhiel",
-                                qty: "200",
-                              ),
-                            ],
+                          child: Consumer<TransactionsProvider>(
+                            builder: (context, provider, _) {
+                              return StreamBuilder<List<InventoryTransaction>>(
+                                stream: provider.watchLatest(limit: 5),
+                                builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                    return const Center(
+                                      child: CircularProgressIndicator(),
+                                    );
+                                  }
+
+                                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                    return const Center(
+                                      child: Text(
+                                        "No recent transactions",
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    );
+                                  }
+
+                                  final transactions = snapshot.data!;
+
+                                  return ListView.builder(
+                                    itemCount: transactions.length,
+                                    itemBuilder: (context, index) {
+                                      final tx = transactions[index];
+
+                                      return RecentTransactionRow(
+                                        item: tx.itemName,
+                                        action: _actionLabel(tx.type),
+                                        user: tx.userName ?? 'Unknown',
+                                        qty: tx.quantity?.toString() ?? '-',
+                                      );
+                                    },
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
+
                       ],
                     ),
                   ),
@@ -110,6 +147,30 @@ class InventoryPage extends StatelessWidget {
   }
 }
 
+
+String _actionLabel(TransactionType type) {
+  switch (type) {
+    case TransactionType.addStock:
+      return 'Added';
+    case TransactionType.dispense:
+      return 'Dispensed';
+    case TransactionType.createItem:
+      return 'Created';
+    case TransactionType.deleteItem:
+      return 'Deleted';
+    default:
+      return type.name;
+  }
+}
+
+
+void _openStockDialog(BuildContext context, StockActionMode mode) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => StockActionDialog(mode: mode),
+  );
+}
 //
 // ---------------- REUSABLE BUTTON WIDGET ----------------
 //

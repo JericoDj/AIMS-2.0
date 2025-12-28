@@ -1,8 +1,8 @@
-import 'package:aims2frontend/screens/admin/widgets/testBarcodeButton.dart';
-import 'package:aims2frontend/screens/admin/widgets/testBarcodeToDesktop.dart';
-import 'package:aims2frontend/screens/admin/widgets/testButton.dart';
-import 'package:aims2frontend/screens/admin/widgets/testDecodeItem.dart';
-import 'package:aims2frontend/screens/admin/widgets/testDecryptionButton.dart';
+import 'package:aims2frontend/screens/admin/widgets/test/testBarcodeButton.dart';
+import 'package:aims2frontend/screens/admin/widgets/test/testBarcodeToDesktop.dart';
+import 'package:aims2frontend/screens/admin/widgets/test/testButton.dart';
+import 'package:aims2frontend/screens/admin/widgets/test/testDecodeItem.dart';
+import 'package:aims2frontend/screens/admin/widgets/test/testDecryptionButton.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -60,9 +60,9 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
                 //
                 // TestEncryptionDecryptionButton(input: "item2"),
-                TestBarcodeRoundTripButton(
-                  barcodeValue: 'Biogesic',
-                ),
+                // TestBarcodeRoundTripButton(
+                //   barcodeValue: 'Biogesic',
+                // ),
 
                 //
                 //
@@ -311,7 +311,7 @@ class StockRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 70,
+      height: 100,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),

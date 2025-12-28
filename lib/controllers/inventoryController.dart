@@ -185,6 +185,93 @@ class InventoryController {
 
 
 
+  // ================= DISPENSE STOCK (FIFO, SAFE) =================
+  Future<void> dispenseStock({
+    required String itemId,
+    required int quantity,
+  }) async {
+    debugPrint('🔴 [dispenseStock] START');
+
+    final ref = _firestore.collection('items').doc(itemId);
+    String itemName = '';
+
+    try {
+      await _firestore.runTransaction((tx) async {
+        debugPrint('🟡 [dispenseStock] Fetching item document');
+
+        final snap = await tx.get(ref);
+
+        if (!snap.exists) {
+          throw Exception('Item does not exist');
+        }
+
+        final data = snap.data() as Map<String, dynamic>;
+        itemName = data['name'] ?? '';
+
+        List<Map<String, dynamic>> batches =
+        List<Map<String, dynamic>>.from(data['batches'] ?? []);
+
+        // FIFO → earliest expiry first
+        batches.sort(
+              (a, b) => DateTime.parse(a['expiry'])
+              .compareTo(DateTime.parse(b['expiry'])),
+        );
+
+        int remaining = quantity;
+
+        for (int i = 0; i < batches.length && remaining > 0; i++) {
+          final int batchQty = (batches[i]['quantity'] as num).toInt();
+
+          if (batchQty <= remaining) {
+            remaining -= batchQty;
+            batches[i]['quantity'] = 0;
+          } else {
+            batches[i]['quantity'] = batchQty - remaining;
+            remaining = 0;
+          }
+        }
+
+        if (remaining > 0) {
+          throw Exception('Insufficient stock');
+        }
+
+        // Remove empty batches
+        batches.removeWhere(
+              (b) => (b['quantity'] as num).toInt() == 0,
+        );
+
+        debugPrint('🟡 [dispenseStock] Updating document');
+
+        tx.update(ref, {
+          'batches': batches,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      debugPrint('🟢 [dispenseStock] Document updated successfully');
+    } catch (e, s) {
+      debugPrint('❌ [dispenseStock] FAILED: $e');
+      debugPrintStack(stackTrace: s);
+      rethrow; // let UI show error (insufficient stock etc.)
+    }
+
+    // ================= LOGGING (ISOLATED) =================
+    try {
+      await InventoryTransactionController().log(
+        type: TransactionType.dispense,
+        itemId: itemId,
+        itemName: itemName,
+        quantity: quantity,
+      );
+      debugPrint('🟢 [dispenseStock] Transaction logged');
+    } catch (e) {
+      debugPrint('⚠️ [dispenseStock] Logging failed: $e');
+    }
+
+    debugPrint('🔴 [dispenseStock] END');
+  }
+
+
 
 
   // ================= FIFO TRANSACTION =================

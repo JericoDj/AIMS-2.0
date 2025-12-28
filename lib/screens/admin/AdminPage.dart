@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 // IMPORT ALL SUBPAGES
+import '../../providers/accounts_provider.dart';
+import '../../providers/sync_provider.dart';
 import '../Offline/OfflineInventoryPage.dart';
 import '../Offline/OfflineStockMonitoringPage.dart';
 import '../Offline/OfflineTransactionsPage.dart';
@@ -24,15 +27,17 @@ class AdminPage extends StatefulWidget {
 
 
 
+
+
   @override
   State<AdminPage> createState() => _AdminPageState();
 
 }
 
 
-
-
 class _AdminPageState extends State<AdminPage> {
+
+  static const String _currentUserKey = 'current_user';
   int selectedIndex = 0;
   bool isOfflineMode = false;
 
@@ -43,16 +48,19 @@ class _AdminPageState extends State<AdminPage> {
   final GetStorage box = GetStorage();
 
   bool _hasValidOfflineUser() {
-    final data = box.read('offline_user');
+
+
+    final data = box.read(_currentUserKey);
 
     if (data == null) return false;
-
     if (data is! Map) return false;
 
-    return data['uid'] != null &&
+    return data['id'] != null &&
         data['email'] != null &&
-        data['name'] != null;
+        data['fullName'] != null &&
+        data['role'] != null;
   }
+
 
 
   List<Map<String, dynamic>> notifications = [
@@ -199,6 +207,9 @@ class _AdminPageState extends State<AdminPage> {
   // LEFT SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
+
+    final isAdmin = context.watch<AccountsProvider>().isAdmin;
+    final syncProvider = context.watch<SyncProvider>();
     return Container(
       width: 260,
       color: Colors.grey[100],
@@ -331,35 +342,64 @@ class _AdminPageState extends State<AdminPage> {
               ),
             ),
 
+          if (isAdmin && !isOfflineMode)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  context.push('/admin/sync');
+                },
+                icon: const Icon(Icons.sync),
+                label: Text(
+                  syncProvider.syncing ? "Syncing..." : "Sync Requests",
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orange[700],
+                  minimumSize: const Size(200, 40),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ),
+
           // ------------------- ONLINE / OFFLINE MODE TOGGLE -------------------
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
             child: GestureDetector(
               onTap: () {
-                // 🔒 Forced offline → do nothing
+                // 🔒 Forced offline → locked
                 if (widget.forceOffline == true) return;
 
-                // 🔍 Validate before entering offline
-                if (!isOfflineMode) {
-                  final isValid = _hasValidOfflineUser();
+                // 🧠 Going ONLINE → always allowed
+                if (isOfflineMode) {
+                  setState(() {
+                    isOfflineMode = false;
+                    selectedIndex = 0;
+                  });
+                  return;
+                }
 
-                  if (!isValid) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          "Offline mode unavailable. No cached user found.",
-                        ),
-                      ),
-                    );
-                    return;
-                  }
+                // 🔍 Going OFFLINE → must have cached user
+                final hasOfflineUser = _hasValidOfflineUser();
+
+                if (!hasOfflineUser) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("No offline user found. Please login online first."),
+                    ),
+                  );
+                  return;
                 }
 
                 setState(() {
-                  isOfflineMode = !isOfflineMode;
+                  isOfflineMode = true;
                   selectedIndex = 0;
                 });
               },
+
+
+
 
               child: Container(
                 width: 200,
@@ -394,17 +434,25 @@ class _AdminPageState extends State<AdminPage> {
           Padding(
             padding: const EdgeInsets.only(bottom: 25),
             child: GestureDetector(
-              onTap: () => context.go('/'),
+              onTap: () {
+                context.read<AccountsProvider>().logout();
+                // ❌ NO context.go()
+                // ✅ Router will redirect automatically
+              },
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.logout, color: Colors.green[800]),
                   const SizedBox(width: 8),
-                  Text("Logout", style: TextStyle(color: Colors.green[800])),
+                  Text(
+                    "Logout",
+                    style: TextStyle(color: Colors.green[800]),
+                  ),
                 ],
               ),
             ),
           ),
+
         ],
       ),
     );

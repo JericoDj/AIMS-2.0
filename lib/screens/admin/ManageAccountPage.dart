@@ -2,34 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../dialogs/create_account_dialog.dart';
+import '../../models/AccountModel.dart';
 import '../../providers/accounts_provider.dart';
-
 class ManageAccountsPage extends StatelessWidget {
   const ManageAccountsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-
-    final accounts = context.watch<AccountsProvider>().accounts;
-
-
-    final users = [
-      {
-        "name": "Esquilador, Mhiel James",
-        "role": "User",
-        "image": "assets/JericoDeJesus.png",
-      },
-      {
-        "name": "Saligumba, Arturo Enrique",
-        "role": "User",
-        "image": "assets/JericoDeJesus.png",
-      },
-      {
-        "name": "Dionisio, Danielle",
-        "role": "User",
-        "image": "assets/JericoDeJesus.png",
-      }
-    ];
+    final accountsProvider = context.watch<AccountsProvider>();
+    final accounts = accountsProvider.accounts;
+    final currentUser = accountsProvider.currentUser;
 
     return SingleChildScrollView(
       child: Column(
@@ -38,29 +20,32 @@ class ManageAccountsPage extends StatelessWidget {
           const SizedBox(height: 20),
 
           // ------------------- PROFILE GREETING -------------------
-          Column(
-            children: [
-              CircleAvatar(
-                radius: 45,
-                backgroundImage: AssetImage( "assets/JericoDeJesus.png"),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                "Hi, Baby Jane!",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+          if (currentUser != null)
+            Column(
+              children: [
+                CircleAvatar(
+                  radius: 45,
+                  backgroundImage: AssetImage(
+                    currentUser.image ?? 'assets/JericoDeJesus.png',
+                  ),
                 ),
-              ),
-              const Text(
-                "Administrator",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
+                const SizedBox(height: 12),
+                Text(
+                  "Hi, ${currentUser.fullName}!",
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
-              ),
-            ],
-          ),
+                Text(
+                  currentUser.role.name.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
 
           const SizedBox(height: 35),
 
@@ -73,29 +58,46 @@ class ManageAccountsPage extends StatelessWidget {
             ),
             child: Column(
               children: [
-                // USER ROWS
-                for (var index = 0; index < users.length; index++)
+                // ------------------- USER ROWS -------------------
+                if (accounts.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(30),
+                    child: Text(
+                      "No accounts found",
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  ),
+
+                for (var index = 0; index < accounts.length; index++)
                   Column(
                     children: [
                       _UserRow(
-                        image: users[index]["image"]!,
-                        name: users[index]["name"]!,
-                        role: users[index]["role"]!,
-                        onEdit: () {},
-                        onRemove: () {},
+                        image: accounts[index].image ?? 'assets/JericoDeJesus.png',
+                        name: accounts[index].fullName,
+                        role: accounts[index].role.name.toUpperCase(),
+                        onEdit: () {
+                          // TODO: Open edit dialog
+                        },
+                        onRemove: () {
+                          _confirmRemove(
+                            context,
+                            accountsProvider,
+                            accounts[index],
+                          );
+                        },
                       ),
 
-                      // Divider line between rows, except last
-                      if (index != users.length - 1)
+                      if (index != accounts.length - 1)
                         Container(
                           height: 1,
                           color: Colors.white.withOpacity(0.6),
-                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          margin:
+                          const EdgeInsets.symmetric(horizontal: 20),
                         ),
                     ],
                   ),
 
-                // CREATE ACCOUNT BUTTON
+                // ------------------- CREATE ACCOUNT -------------------
                 GestureDetector(
                   onTap: () {
                     showDialog(
@@ -123,7 +125,41 @@ class ManageAccountsPage extends StatelessWidget {
       ),
     );
   }
+
+  // ------------------- REMOVE CONFIRMATION -------------------
+  void _confirmRemove(
+      BuildContext context,
+      AccountsProvider provider,
+      Account account,
+      ) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Remove Account"),
+        content: Text(
+          "Are you sure you want to remove ${account.fullName}?",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              provider.removeAccount(account.id);
+              Navigator.pop(context);
+            },
+            child: const Text(
+              "Remove",
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 
 //
 // ==================== USER ROW WIDGET ====================

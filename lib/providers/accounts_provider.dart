@@ -2,168 +2,167 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:uuid/uuid.dart';
 
 import '../models/AccountModel.dart';
 import '../utils/enums/role_enum.dart';
 
 class AccountsProvider extends ChangeNotifier {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GetStorage _box = GetStorage();
 
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-
-  static const String _accountsKey = 'accounts';
-  static const String _sessionKey = 'session';
+  static const String _currentUserKey = 'current_user';
 
   final List<Account> _accounts = [];
   Account? _currentUser;
 
-  /// ---------------- GETTERS ----------------
+  // ================= GETTERS =================
   List<Account> get accounts => List.unmodifiable(_accounts);
   Account? get currentUser => _currentUser;
 
   bool get isLoggedIn => _currentUser != null;
-  bool get isAdmin => _currentUser?.isAdmin ?? false;
-  bool get isUser => _currentUser?.isUser ?? false;
+  bool get isAdmin => _currentUser?.role == UserRole.admin;
+  bool get isUser => _currentUser?.role == UserRole.user;
 
-  /// ---------------- INIT ----------------
+  // ================= INIT =================
   AccountsProvider() {
-    _loadAccounts();
-    _loadSession();
+    _loadCurrentUser();
+    fetchUsersFromFirestore();
   }
 
 
-  /// Save session directly from Firestore account
-  void setSession(Account account) {
+  void setCurrentUser(Account account) {
     _currentUser = account;
-    _saveSession(account);
+    _saveCurrentUser(account);
     notifyListeners();
   }
 
-
-
-
-  /// ---------------- STORAGE ----------------
-  void _loadAccounts() {
-    final stored = _box.read<List>(_accountsKey) ?? [];
-
-    _accounts
-      ..clear()
-      ..addAll(
-        stored.map(
-              (e) => Account.fromMap(Map<String, dynamic>.from(e)),
-        ),
-      );
-
-    notifyListeners();
-  }
-
-  void _saveAccounts() {
-    _box.write(
-      _accountsKey,
-      _accounts.map((e) => e.toMap()).toList(),
-    );
-  }
-
-  void _loadSession() {
-    final data = _box.read(_sessionKey);
+  // ================= CURRENT USER STORAGE =================
+  void _loadCurrentUser() {
+    final data = _box.read(_currentUserKey);
     if (data != null) {
-      _currentUser = Account.fromMap(Map<String, dynamic>.from(data));
+      _currentUser = Account.fromMap(
+        Map<String, dynamic>.from(data),
+      );
       notifyListeners();
     }
   }
 
-  void _saveSession(Account user) {
-    print(user);
-    print(user.id);
-    print(user.fullName);
-    print(user.email);
-    print("user printing");
-    _box.write(_sessionKey, user.toMap());
+  void _saveCurrentUser(Account user) {
+    _box.write(_currentUserKey, user.toMap());
   }
 
-  void _clearSession() {
-    _box.remove(_sessionKey);
+  void _clearCurrentUser() {
+    _box.remove(_currentUserKey);
   }
 
-  /// ---------------- CRUD ----------------
+  // ================= FIRESTORE USERS =================
+  Future<void> fetchUsersFromFirestore() async {
+    try {
+      final snapshot = await _firestore.collection('users').get();
+
+      final users = snapshot.docs
+          .map((doc) => Account.fromMap(doc.data()))
+          .toList();
+
+      _accounts
+        ..clear()
+        ..addAll(users);
+
+      // Ensure logged-in admin is visible
+      if (_currentUser != null &&
+          _currentUser!.role == UserRole.admin &&
+          !_accounts.any((u) => u.id == _currentUser!.id)) {
+        _accounts.insert(0, _currentUser!);
+      }
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint('❌ fetchUsersFromFirestore failed: $e');
+    }
+  }
+
+  // ================= AUTH =================
+  Future<void> loginWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final credential = await _auth.signInWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
+
+    final uid = credential.user!.uid;
+    final doc = await _firestore.collection('users').doc(uid).get();
+
+    if (!doc.exists) {
+      throw Exception('User record not found');
+    }
+
+    final account = Account.fromMap(doc.data()!);
+    _currentUser = account;
+    _saveCurrentUser(account);
+    notifyListeners();
+  }
+
+  void logout() {
+    _currentUser = null;
+    _clearCurrentUser();
+    notifyListeners();
+  }
+
+  // ================= CREATE ACCOUNT =================
   Future<void> createAccount({
     required String fullName,
     required String email,
     required UserRole role,
     required String password,
   }) async {
-    try {
-      /// 1️⃣ Create user in Firebase Auth
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+    final credential =
+    await _auth.createUserWithEmailAndPassword(
+      email: email,
+      password: password,
+    );
 
-      final uid = credential.user!.uid;
+    final uid = credential.user!.uid;
 
-      /// 2️⃣ Create Account model
-      final account = Account(
-        id: uid,
-        fullName: fullName,
-        email: email,
-        role: role,
-        image: 'assets/JericoDeJesus.png',
-        createdAt: DateTime.now(),
-      );
+    final account = Account(
+      id: uid,
+      fullName: fullName,
+      email: email,
+      role: role,
+      image: 'assets/JericoDeJesus.png',
+      createdAt: DateTime.now(),
+    );
 
-      /// 3️⃣ Save to Firestore
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .set(account.toMap());
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .set(account.toMap());
 
-      /// 4️⃣ Update local state
-      _accounts.add(account);
-      // _saveAccounts();
-      notifyListeners();
-    } on FirebaseAuthException catch (e) {
-      throw Exception((e));
-    }
+    _accounts.add(account);
+    notifyListeners();
   }
 
+  // ================= PASSWORD RESET =================
   Future<void> sendPasswordReset(String email) async {
-    if (email.isEmpty) {
-      throw Exception("Email is required");
-    }
-
-    try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
-      throw Exception(e.message ?? "Failed to send reset email");
-    }
+    await _auth.sendPasswordResetEmail(email: email);
   }
 
-  void removeAccount(String id) {
+  // ================= REMOVE ACCOUNT =================
+  Future<void> removeAccount(String id) async {
+    await _firestore.collection('users').doc(id).delete();
+
     _accounts.removeWhere((a) => a.id == id);
 
     if (_currentUser?.id == id) {
       logout();
     }
 
-    _saveAccounts();
     notifyListeners();
   }
 
-  /// ---------------- AUTH ----------------
-  bool login(String accountId) {
-    try {
-      final user = _accounts.firstWhere((a) => a.id == accountId);
-      _currentUser = user;
-      _saveSession(user);
-      notifyListeners();
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
+  // ================= ADMIN SHORTCUT (DEV ONLY) =================
   void loginAsAdmin() {
     final admin = Account(
       id: 'admin',
@@ -175,13 +174,7 @@ class AccountsProvider extends ChangeNotifier {
     );
 
     _currentUser = admin;
-    _saveSession(admin);
-    notifyListeners();
-  }
-
-  void logout() {
-    _currentUser = null;
-    _clearSession();
+    _saveCurrentUser(admin);
     notifyListeners();
   }
 }

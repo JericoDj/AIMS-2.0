@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-import '../../../controllers/barCodeController.dart';
+import '../../../../controllers/barCodeController.dart';
 
 class TestBarcodeToDesktopButton extends StatelessWidget {
   final String input;

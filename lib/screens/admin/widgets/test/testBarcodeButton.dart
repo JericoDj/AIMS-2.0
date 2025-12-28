@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-import '../../../controllers/barCodeController.dart';
+import '../../../../controllers/barCodeController.dart';
 
 class TestBarcodeRoundTripButton extends StatelessWidget {
   final String barcodeValue;

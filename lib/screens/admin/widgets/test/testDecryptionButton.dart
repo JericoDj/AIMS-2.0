@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../controllers/barCodeController.dart';
+import '../../../../controllers/barCodeController.dart';
 
 class TestEncryptionDecryptionButton extends StatelessWidget {
   final String input;

@@ -8,20 +8,19 @@ class InventoryTransactionController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GetStorage _box = GetStorage();
 
-  /// Safely read current user from GetStorage
+  /// Read current user from storage (safe)
   Map<String, dynamic>? _getCurrentUser() {
     try {
-      final raw = _box.read(StorageKeys.session);
+      final raw = _box.read(StorageKeys.currentUser);
       if (raw == null || raw is! Map) return null;
       return Map<String, dynamic>.from(raw);
-    } catch (e) {
-      // Never allow storage corruption to crash logging
+    } catch (_) {
       return null;
     }
   }
 
-  /// Log inventory-related transaction
-  /// ⚠️ This function MUST NEVER throw
+  /// ================= LOG (ONLINE) =================
+  /// ⚠️ MUST NEVER THROW
   Future<void> log({
     required TransactionType type,
     required String itemId,
@@ -33,35 +32,45 @@ class InventoryTransactionController {
     final user = _getCurrentUser();
 
     final payload = {
-      // transaction
       'type': type.name.toUpperCase(),
 
-      // item
       'itemId': itemId,
       'itemName': itemName,
       'quantity': quantity,
       'expiry': expiry?.toIso8601String(),
 
-      // user (nullable-safe)
       'userId': user?['id'],
       'userName': user?['fullName'],
       'userRole': _safeRole(user?['role']),
 
-      // meta
       'source': source,
       'timestamp': FieldValue.serverTimestamp(),
     };
 
     try {
       await _firestore.collection('transactions').add(payload);
-      // debugPrint('🧾 Transaction logged: ${type.name}');
-    } catch (e) {
-      // ❗ Swallow error to protect inventory logic
-      // debugPrint('⚠️ Transaction log failed: $e');
+    } catch (_) {
+      // swallow error — inventory must continue
     }
   }
 
-  /// Ensures role is stored as STRING (Firestore-safe)
+  /// ================= SYNC (OFFLINE → ONLINE) =================
+  Future<void> sync(InventoryTransaction tx) async {
+    await _firestore.collection('transactions').add({
+      'type': tx.type.name.toUpperCase(),
+      'itemId': tx.itemId,
+      'itemName': tx.itemName,
+      'quantity': tx.quantity,
+      'expiry': tx.expiry?.toIso8601String(),
+      'userId': tx.userId,
+      'userName': tx.userName,
+      'userRole': tx.userRole,
+      'source': 'OFFLINE_SYNC',
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+  }
+
+  /// Ensure role is always a STRING
   String? _safeRole(dynamic role) {
     if (role == null) return null;
     if (role is String) return role;

@@ -47,7 +47,10 @@ class UserLoginPage extends StatelessWidget {
           }
 
           /// 4️⃣ Save session
-          accountsProvider.login(account.id);
+          await accountsProvider.loginWithEmail(
+            email: email,
+            password: password,
+          );
 
           /// 5️⃣ Navigate AFTER success
           context.go('/user');

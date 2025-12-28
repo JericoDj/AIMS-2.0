@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 
-import '../../../controllers/barCodeController.dart';
+import '../../../../controllers/barCodeController.dart';
 
 class DecodeBarcodeButton extends StatelessWidget {
   final String assetPath;

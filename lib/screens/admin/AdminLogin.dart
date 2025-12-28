@@ -50,7 +50,7 @@ class AdminLoginPage extends StatelessWidget {
           }
 
           /// 5️⃣ Save FULL session (Firestore-backed)
-          accountsProvider.setSession(account);
+          accountsProvider.setCurrentUser(account);
 
           /// 6️⃣ Navigate AFTER success
           context.go('/admin');
