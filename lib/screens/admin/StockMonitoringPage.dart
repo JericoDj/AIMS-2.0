@@ -158,6 +158,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                       _HeaderCell("Category", flex: 2),
                       _HeaderCell("Quantity", flex: 2),
                       _HeaderCell("Expiry", flex: 2),
+                      _HeaderCell("Barcode", flex: 3),
                       _HeaderCell("Status", flex: 2),
                     ],
                   ),
@@ -192,6 +193,8 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                             category: item.category,
                             qty: item.totalStock,
                             expiry: item.nearestExpiryFormatted,
+                            barcodeUrl: item.barcodeImageUrl,
+
                           );
                         },
                       );
@@ -269,6 +272,7 @@ class StockRow extends StatelessWidget {
   final String category;
   final int qty;
   final String expiry;
+  final String? barcodeUrl;
 
   const StockRow({
     super.key,
@@ -276,6 +280,7 @@ class StockRow extends StatelessWidget {
     required this.category,
     required this.qty,
     required this.expiry,
+    this.barcodeUrl,
   });
 
   String _getStatus() {
@@ -306,7 +311,7 @@ class StockRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
+      height: 70,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
@@ -324,6 +329,51 @@ class StockRow extends StatelessWidget {
           _Cell(qty.toString(), flex: 2),
           _Cell(expiry, flex: 2),
 
+          // ================= BARCODE IMAGE CELL =================
+          Expanded(
+            flex: 3,
+            child: barcodeUrl == null
+                ? const Icon(Icons.qr_code, color: Colors.grey)
+                : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Small preview
+                Image.network(
+                  barcodeUrl!,
+                  height: 40,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image,
+                    color: Colors.red,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
+                // View button
+                TextButton(
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => _BarcodeViewerDialog(
+                        barcodeUrl: barcodeUrl!,
+                      ),
+                    );
+                  },
+                  child: const Text(
+                    "View",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+
+          // ================= STATUS =================
           Expanded(
             flex: 2,
             child: Container(
@@ -348,6 +398,63 @@ class StockRow extends StatelessWidget {
     );
   }
 }
+
+
+class _BarcodeViewerDialog extends StatelessWidget {
+  final String barcodeUrl;
+
+  const _BarcodeViewerDialog({required this.barcodeUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(20),
+      child: Column(
+        children: [
+          // Close button
+          Align(
+            alignment: Alignment.topRight,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+
+          const SizedBox(height: 10),
+
+          // Large barcode image
+          Expanded(
+            child: InteractiveViewer(
+              minScale: 1,
+              maxScale: 4,
+              child: Center(
+                child: Image.network(
+                  barcodeUrl,
+                  width: double.infinity,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          const Text(
+            "Align scanner to barcode",
+            style: TextStyle(
+              color: Colors.white70,
+              fontSize: 14,
+            ),
+          ),
+
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
 
 //
 // ========================= TABLE CELL =========================

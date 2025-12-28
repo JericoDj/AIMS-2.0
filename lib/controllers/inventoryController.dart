@@ -27,18 +27,15 @@ class InventoryController {
     required String name,
     required String category,
   }) async {
-    debugPrint("🧾 Creating item: $name");
+    debugPrint('🧾 Creating item: $name');
 
-    // 1️⃣ Generate encrypted barcode value
-    final String barcodeValue = BarcodeController.generate(name);
-    debugPrint("🔐 ENCRYPTED VALUE:");
-    debugPrint(barcodeValue);
-
-    // 2️⃣ Create Firestore item FIRST
-    final docRef = await _firestore.collection('items').add({
+    // ============================
+    // 1️⃣ Create Firestore item
+    // ============================
+    final DocumentReference docRef =
+    await _firestore.collection('items').add({
       'name': name,
       'name_key': normalizeItemName(name),
-      'barcode': barcodeValue,
       'category': category,
       'batches': [],
       'createdAt': FieldValue.serverTimestamp(),
@@ -47,77 +44,38 @@ class InventoryController {
 
     final String itemId = docRef.id;
 
-    // 3️⃣ Generate barcode PNG (ZXing → Code128)
+    // ============================
+    // 2️⃣ Generate Code128 barcode
+    // ============================
     final BarcodePngResult barcodeResult =
-    BarcodeController.generateCode128(barcodeValue);
+    BarcodeController.generateCode128(name);
 
-    final Uint8List barcodePng = barcodeResult.pngBytes;
+    final Uint8List barcodePngBytes = barcodeResult.pngBytes;
 
-    // 4️⃣ Upload to Firebase Storage
-    final storageRef =
-    _storage.ref().child('items/$itemId/barcode.png');
+    // ============================
+    // 3️⃣ Upload barcode to Storage
+    // ============================
+    final Reference barcodeRef =
+    _storage.ref('items/$itemId/barcode.png');
 
-    await storageRef.putData(
-      barcodePng,
+    await barcodeRef.putData(
+      barcodePngBytes,
       SettableMetadata(contentType: 'image/png'),
     );
 
-    // 5️⃣ Get download URL
+    // ============================
+    // 4️⃣ Save barcode image URL
+    // ============================
     final String barcodeImageUrl =
-    await storageRef.getDownloadURL();
+    await barcodeRef.getDownloadURL();
 
-    // 6️⃣ Save barcode image URL
     await docRef.update({
       'barcode_image_url': barcodeImageUrl,
     });
 
-    // =====================================
-    // 🔍 DEBUG ONLY: VERIFY PNG → DECRYPT
-    // (NEVER FAIL ITEM CREATION)
-    // =====================================
-    assert(() {
-      try {
-        debugPrint("🔍 DEBUG: Decoding barcode from PNG");
-
-        final Code result = zx.readBarcode(
-          barcodePng,
-          DecodeParams(
-            format: Format.code128, // ✅ match generator
-            tryHarder: true,
-            tryRotate: true,
-            maxSize: 1024,
-          ),
-        );
-
-        if (!result.isValid || result.text == null) {
-          debugPrint('⚠️ DEBUG: No barcode detected');
-          return true;
-        }
-
-        final String decodedFromPng = result.text!;
-        debugPrint("📥 DECODED FROM PNG:");
-        debugPrint(decodedFromPng);
-
-        final String decryptedFromPng =
-        BarcodeController.decrypt(decodedFromPng);
-
-        debugPrint("🔓 DECRYPTED FROM PNG:");
-        debugPrint(decryptedFromPng);
-
-        assert(
-        decryptedFromPng ==
-            BarcodeController.normalizeForKey(name),
-        '❌ PNG barcode decrypt mismatch',
-        );
-      } catch (e, s) {
-        debugPrint('⚠️ DEBUG decode failed: $e');
-        debugPrintStack(stackTrace: s);
-      }
-      return true;
-    }());
-    // =====================================
-
-    // 7️⃣ Log transaction
+    // ============================
+    // 5️⃣ Log inventory transaction
+    // ============================
     await InventoryTransactionController().log(
       type: TransactionType.createItem,
       itemId: itemId,
@@ -126,6 +84,7 @@ class InventoryController {
 
     return itemId;
   }
+
 
 
 
