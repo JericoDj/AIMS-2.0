@@ -3,7 +3,9 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter_zxing/flutter_zxing.dart';
 
+import '../models/BarcodePngResult.dart';
 import '../models/TransactionModel.dart';
 import 'barCodeController.dart';
 import 'barCodeDecoderController.dart';
@@ -25,12 +27,12 @@ class InventoryController {
     required String name,
     required String category,
   }) async {
-    print("starting to generate the barcode");
+    debugPrint("🧾 Creating item: $name");
 
     // 1️⃣ Generate encrypted barcode value
-    final barcodeValue = BarcodeController.generate(name);
-    print("ENCRYPTED VALUE:");
-    print(barcodeValue);
+    final String barcodeValue = BarcodeController.generate(name);
+    debugPrint("🔐 ENCRYPTED VALUE:");
+    debugPrint(barcodeValue);
 
     // 2️⃣ Create Firestore item FIRST
     final docRef = await _firestore.collection('items').add({
@@ -43,11 +45,13 @@ class InventoryController {
       'updatedAt': FieldValue.serverTimestamp(),
     });
 
-    final itemId = docRef.id;
+    final String itemId = docRef.id;
 
-    // 3️⃣ Generate barcode PNG
-    final Uint8List barcodePng =
-    BarcodeController.generateBarcodePng(barcodeValue);
+    // 3️⃣ Generate barcode PNG (ZXing → Code128)
+    final BarcodePngResult barcodeResult =
+    BarcodeController.generateCode128(barcodeValue);
+
+    final Uint8List barcodePng = barcodeResult.pngBytes;
 
     // 4️⃣ Upload to Firebase Storage
     final storageRef =
@@ -59,7 +63,8 @@ class InventoryController {
     );
 
     // 5️⃣ Get download URL
-    final barcodeImageUrl = await storageRef.getDownloadURL();
+    final String barcodeImageUrl =
+    await storageRef.getDownloadURL();
 
     // 6️⃣ Save barcode image URL
     await docRef.update({
@@ -67,40 +72,49 @@ class InventoryController {
     });
 
     // =====================================
-    // 🔍 DEBUG ONLY: READ + DECRYPT PNG
-    // (flutter_barcode_sdk – SAFE & ASYNC)
+    // 🔍 DEBUG ONLY: VERIFY PNG → DECRYPT
+    // (NEVER FAIL ITEM CREATION)
     // =====================================
-    try {
-      // Ensure SDK is initialized once
-      await BarcodeImageDecoder.init();
-      print("done initializing");
+    assert(() {
+      try {
+        debugPrint("🔍 DEBUG: Decoding barcode from PNG");
 
-      // Decode barcode value from PNG image
-      final decodedFromPng =
-      await BarcodeImageDecoder.decodeFromPng(barcodePng);
+        final Code result = zx.readBarcode(
+          barcodePng,
+          DecodeParams(
+            format: Format.code128, // ✅ match generator
+            tryHarder: true,
+            tryRotate: true,
+            maxSize: 1024,
+          ),
+        );
 
-      if (decodedFromPng != null) {
-        print("DECODED FROM PNG:");
-        print(decodedFromPng);
+        if (!result.isValid || result.text == null) {
+          debugPrint('⚠️ DEBUG: No barcode detected');
+          return true;
+        }
 
-        // Decrypt decoded value
-        final decryptedFromPng =
+        final String decodedFromPng = result.text!;
+        debugPrint("📥 DECODED FROM PNG:");
+        debugPrint(decodedFromPng);
+
+        final String decryptedFromPng =
         BarcodeController.decrypt(decodedFromPng);
-        print("DECRYPTED FROM PNG:");
-        print(decryptedFromPng);
 
-        // Optional validation (debug only)
+        debugPrint("🔓 DECRYPTED FROM PNG:");
+        debugPrint(decryptedFromPng);
+
         assert(
-        decryptedFromPng == BarcodeController.normalize(name),
+        decryptedFromPng ==
+            BarcodeController.normalizeForKey(name),
         '❌ PNG barcode decrypt mismatch',
         );
-      } else {
-        print('⚠️ No barcode detected in PNG');
+      } catch (e, s) {
+        debugPrint('⚠️ DEBUG decode failed: $e');
+        debugPrintStack(stackTrace: s);
       }
-    } catch (e) {
-      // Non-fatal — decoding may fail for some formats
-      debugPrint('⚠️ Barcode PNG decode skipped: $e');
-    }
+      return true;
+    }());
     // =====================================
 
     // 7️⃣ Log transaction
@@ -112,6 +126,7 @@ class InventoryController {
 
     return itemId;
   }
+
 
 
   Future<bool> itemNameExists(String name) async {

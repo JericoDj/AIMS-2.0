@@ -1,3 +1,8 @@
+import 'package:aims2frontend/screens/admin/widgets/testBarcodeButton.dart';
+import 'package:aims2frontend/screens/admin/widgets/testBarcodeToDesktop.dart';
+import 'package:aims2frontend/screens/admin/widgets/testButton.dart';
+import 'package:aims2frontend/screens/admin/widgets/testDecodeItem.dart';
+import 'package:aims2frontend/screens/admin/widgets/testDecryptionButton.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -46,6 +51,23 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
             Row(
               children: [
+
+                // TestBarcodeToDesktopButton(
+                //   input: 'item2', // 🔐 value to encrypt (for crypto test)
+                // ),
+
+                // DecodeAssetBarcodeButton(),
+
+                //
+                // TestEncryptionDecryptionButton(input: "item2"),
+                TestBarcodeRoundTripButton(
+                  barcodeValue: 'Biogesic',
+                ),
+
+                //
+                //
+                // DecodeBarcodeButton(assetPath: "assets/barcode.png", originalName: "test3"),
+
                 ReusableButton(
                   label: "Add\nItem",
                   onTap: () {
