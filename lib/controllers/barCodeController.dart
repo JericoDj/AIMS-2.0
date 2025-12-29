@@ -100,6 +100,26 @@ class BarcodeController {
     );
   }
 
+  // =========================================================
+// 📱 QR CODE → PNG (ANY LENGTH, ENCRYPTED OK)
+// =========================================================
+  static Future<Uint8List> generateQrPng(String value) async {
+    final result = await FlutterZxing.generateBarcode(
+      content: value,
+      format: BarcodeFormat.qrCode,
+      width: 600,
+      height: 600,
+      margin: 2,
+    );
+
+    if (result == null || result.isEmpty) {
+      throw Exception('Failed to generate QR code');
+    }
+
+    return result;
+  }
+
+
 
 
 
