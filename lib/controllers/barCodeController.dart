@@ -1,8 +1,11 @@
 import 'dart:typed_data';
+import 'dart:ui';
+import 'dart:ui' as ui;
 import 'package:barcode_image/barcode_image.dart';
 import 'package:encrypt/encrypt.dart';
 import 'package:flutter_zxing/flutter_zxing.dart';
 import 'package:image/image.dart' as img;
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/BarcodePngResult.dart';
 
@@ -103,21 +106,45 @@ class BarcodeController {
   // =========================================================
 // 📱 QR CODE → PNG (ANY LENGTH, ENCRYPTED OK)
 // =========================================================
-  static Future<Uint8List> generateQrPng(String value) async {
-    final result = await FlutterZxing.generateBarcode(
-      content: value,
-      format: BarcodeFormat.qrCode,
-      width: 600,
-      height: 600,
-      margin: 2,
+  // =========================================================
+// 📱 QR CODE → PNG (qr_flutter)
+// =========================================================
+  static Future<Uint8List> generateQrPng(
+      String data, {
+        double size = 600,
+      }) async {
+    final qrValidationResult = QrValidator.validate(
+      data: data,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.M,
     );
 
-    if (result == null || result.isEmpty) {
-      throw Exception('Failed to generate QR code');
+    if (qrValidationResult.status != QrValidationStatus.valid) {
+      throw Exception('Invalid QR data');
     }
 
-    return result;
+    final painter = QrPainter(
+      data: data,
+      version: QrVersions.auto,
+      errorCorrectionLevel: QrErrorCorrectLevel.M,
+      gapless: true,
+      color: const Color(0xFF000000),
+      emptyColor: const Color(0xFFFFFFFF),
+    );
+
+    final ui.Image image =
+    await painter.toImage(size);
+
+    final ByteData? byteData =
+    await image.toByteData(format: ui.ImageByteFormat.png);
+
+    if (byteData == null) {
+      throw Exception('Failed to convert QR to PNG');
+    }
+
+    return byteData.buffer.asUint8List();
   }
+
 
 
 

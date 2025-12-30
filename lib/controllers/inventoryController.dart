@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
+
 
 import '../models/BarcodePngResult.dart';
 import '../models/TransactionModel.dart';
@@ -44,13 +44,22 @@ class InventoryController {
 
     final String itemId = docRef.id;
 
-    // ============================
-    // 2️⃣ Generate Code128 barcode
-    // ============================
-    final BarcodePngResult barcodeResult =
-    BarcodeController.generateCode128(name);
+    // // ============================
+    // // 2️⃣ Generate Code128 barcode
+    // // ============================
+    // final BarcodePngResult barcodeResult =
+    // BarcodeController.generateCode128(name);
+    //
+    // final Uint8List barcodePngBytes = barcodeResult.pngBytes;
 
-    final Uint8List barcodePngBytes = barcodeResult.pngBytes;
+    // ============================
+// 3️⃣ Generate QR CODE (Encrypted Item ID)
+// ============================
+//     final String encryptedPayload =
+//     BarcodeController.generate(itemId);
+
+    final Uint8List qrPngBytes =
+    await BarcodeController.generateQrPng(name);
 
     // ============================
     // 3️⃣ Upload barcode to Storage
@@ -59,7 +68,7 @@ class InventoryController {
     _storage.ref('items/$itemId/barcode.png');
 
     await barcodeRef.putData(
-      barcodePngBytes,
+      qrPngBytes,
       SettableMetadata(contentType: 'image/png'),
     );
 

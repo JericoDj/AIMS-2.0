@@ -20,10 +20,15 @@
     final TextEditingController _scanCtrl = TextEditingController();
     final FocusNode _scanFocus = FocusNode();
 
+    final FocusNode _qtyFocus = FocusNode();
+    ItemModel? _selectedItem;
+
     final TextEditingController _qtyCtrl = TextEditingController();
 
     List<ItemModel> _filteredItems = [];
     int _selectedIndex = 0;
+
+    int? _hoveredIndex;
 
     @override
     void initState() {
@@ -49,15 +54,11 @@
     }
 
     // ================= SCAN / SEARCH =================
-    void _handleScanOrSearch(String value) {
-      print("working");
-      print(value);
+    List<ItemModel> _handleScanOrSearch(String value) {
       final query = value.trim();
-      if (query.isEmpty) return;
+      if (query.isEmpty) return [];
 
       final items = context.read<InventoryProvider>().items;
-      print("printing the items");
-      print(items);
 
       final matches = items.where((item) {
         return item.name.toLowerCase().contains(query.toLowerCase());
@@ -67,7 +68,10 @@
         _filteredItems = matches;
         _selectedIndex = 0;
       });
+
+      return matches;
     }
+
 
     // ================= CONFIRM =================
     Future<void> _confirmItem(ItemModel item) async {
@@ -109,12 +113,26 @@
         ),
       );
     }
+    void _selectItem(ItemModel item) {
+      _selectedItem = item;
+
+      if (widget.mode != StockActionMode.view &&
+          _qtyCtrl.text.isEmpty) {
+        // move to qty if not yet set
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          FocusScope.of(context).requestFocus(_qtyFocus);
+        });
+      } else {
+        _confirmItem(item);
+      }
+    }
 
     @override
     void dispose() {
       _scanCtrl.dispose();
       _qtyCtrl.dispose();
       _scanFocus.dispose();
+      _qtyFocus.dispose();
       super.dispose();
     }
 
@@ -152,33 +170,88 @@
               const SizedBox(height: 16),
 
               // ================= SCAN INPUT =================
-              TextField(
-                controller: _scanCtrl,
-                focusNode: _scanFocus,
-                autofocus: true,
-                enableSuggestions: false,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: "Scan barcode or search item",
-                  prefixIcon: Icon(Icons.qr_code_scanner),
-                ),
-                onSubmitted: (value) {
-                  _handleScanOrSearch(value.trim());
-                  _scanCtrl.clear();
+              // ================= SCAN INPUT =================
+              RawKeyboardListener(
+                focusNode: FocusNode(),
+                onKey: (RawKeyEvent event) {
+                  if (event is RawKeyDownEvent &&
+                      (event.logicalKey == LogicalKeyboardKey.enter ||
+                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+
+                    final value = _scanCtrl.text.trim();
+                    if (value.isEmpty) return;
+
+                    final matches = _handleScanOrSearch(value);
+
+                    if (matches.length == 1) {
+                      _selectItem(matches.first);
+
+                      if (widget.mode != StockActionMode.view &&
+                          _qtyCtrl.text.isEmpty) {
+
+                        // ⏱ ensure focus AFTER rebuild
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          FocusScope.of(context).requestFocus(_qtyFocus);
+                        });
+
+                      } else {
+                        _confirmItem(_selectedItem!);
+                      }
+                    }
+
+                    _scanCtrl.clear();
+                  }
                 },
+                child: TextField(
+                  controller: _scanCtrl,
+                  focusNode: _scanFocus,
+                  autofocus: true,
+                  enableSuggestions: false,
+                  autocorrect: false,
+                  decoration: const InputDecoration(
+                    labelText: "Scan QR or search item",
+                    prefixIcon: Icon(Icons.qr_code_scanner),
+                  ),
+                ),
               ),
+
+
+
 
               const SizedBox(height: 12),
 
               // ================= QTY =================
               if (widget.mode != StockActionMode.view)
-                TextField(
-                  controller: _qtyCtrl,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Quantity",
+                RawKeyboardListener(
+                  focusNode: FocusNode(),
+                  onKey: (RawKeyEvent event) {
+                    if (event is RawKeyDownEvent &&
+                        (event.logicalKey == LogicalKeyboardKey.enter ||
+                            event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+
+                      if (_selectedItem == null) return;
+
+                      final qty = int.tryParse(_qtyCtrl.text);
+                      if (qty == null || qty <= 0) return;
+
+                      _confirmItem(_selectedItem!);
+
+                      // reset for next scan
+                      _qtyCtrl.clear();
+                      _selectedItem = null;
+                      FocusScope.of(context).requestFocus(_scanFocus);
+                    }
+                  },
+                  child: TextField(
+                    controller: _qtyCtrl,
+                    focusNode: _qtyFocus,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Quantity",
+                    ),
                   ),
                 ),
+
 
               const SizedBox(height: 16),
 
@@ -192,24 +265,54 @@
                     style: TextStyle(color: Colors.grey),
                   ),
                 )
-                    : ListView.builder(
-                  itemCount: _filteredItems.length,
-                  itemBuilder: (_, index) {
-                    final item = _filteredItems[index];
-                    final selected = index == _selectedIndex;
+                    : SizedBox(
+                  height: 200,
+                  child: _filteredItems.isEmpty
+                      ? const Center(
+                    child: Text(
+                      "No items found",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                      : MouseRegion(
+                    onExit: (_) {
+                      setState(() {
+                        _hoveredIndex = null; // restore top selection
+                      });
+                    },
+                    child: ListView.builder(
+                      itemCount: _filteredItems.length,
+                      itemBuilder: (_, index) {
+                        final item = _filteredItems[index];
 
-                    return Container(
-                      color: selected
-                          ? Colors.green.withOpacity(0.15)
-                          : null,
-                      child: ListTile(
-                        title: Text(item.name),
-                        subtitle: Text("Stock: ${item.totalStock}"),
-                        onTap: () => _confirmItem(item),
-                      ),
-                    );
-                  },
+                        final isHovered = _hoveredIndex == index;
+                        final isSelected =
+                            _hoveredIndex == null && index == _selectedIndex;
+
+                        return MouseRegion(
+                          onEnter: (_) {
+                            setState(() {
+                              _hoveredIndex = index;
+                            });
+                          },
+                          child: Container(
+                            color: isHovered
+                                ? Colors.green.withOpacity(0.25)
+                                : isSelected
+                                ? Colors.green.withOpacity(0.15)
+                                : null,
+                            child: ListTile(
+                              title: Text(item.name),
+                              subtitle: Text("Stock: ${item.totalStock}"),
+                              onTap: () => _selectItem(item),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
                 ),
+
               ),
 
               const SizedBox(height: 12),

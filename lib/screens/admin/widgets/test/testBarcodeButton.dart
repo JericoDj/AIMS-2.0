@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
+
 
 import '../../../../controllers/barCodeController.dart';
 
@@ -53,28 +53,7 @@ class TestBarcodeRoundTripButton extends StatelessWidget {
               '📤 READ BACK PNG (${loadedBytes.length} bytes)');
 
           // 5️⃣ Decode Code128
-          final Code result = zx.readBarcode(
-            loadedBytes,
-            DecodeParams(
-              format: Format.code128,
-              tryHarder: true,
-              tryRotate: true,
-              maxSize: 2048,
-            ),
-          );
 
-          if (!result.isValid || result.text == null) {
-            debugPrint('❌ NO BARCODE DETECTED');
-            return;
-          }
-
-          debugPrint('📥 DECODED VALUE: ${result.text}');
-
-          debugPrint(
-            result.text == barcodeValue
-                ? '✅ CODE128 ROUND-TRIP PASSED'
-                : '❌ CODE128 VALUE MISMATCH',
-          );
 
           debugPrint('==============================');
         } catch (e, s) {

@@ -167,7 +167,7 @@ String _actionLabel(TransactionType type) {
 void _openStockDialog(BuildContext context, StockActionMode mode) {
   showDialog(
     context: context,
-    barrierDismissible: false,
+    barrierDismissible: true,
     builder: (_) => StockActionDialog(mode: mode),
   );
 }

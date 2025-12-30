@@ -1,21 +1,20 @@
 enum ItemCategory {
-  medicine,
-  food,
-  supplies,
-  equipment,
+  pgb,
+  dsbpgb,
+  bmcpgb,
+
 }
 
 extension ItemCategoryX on ItemCategory {
   String get label {
     switch (this) {
-      case ItemCategory.medicine:
-        return 'Medicine';
-      case ItemCategory.food:
-        return 'Food';
-      case ItemCategory.supplies:
-        return 'Supplies';
-      case ItemCategory.equipment:
-        return 'Equipment';
+      case ItemCategory.pgb:
+        return 'PGB Stocks';
+      case ItemCategory.dsbpgb:
+        return 'DSB-PGB Stocks';
+      case ItemCategory.bmcpgb:
+        return 'BMC-PGB Stocks';
+
     }
   }
 }

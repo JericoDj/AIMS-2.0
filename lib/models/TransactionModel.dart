@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/enums/transaction_source_enum.dart';
+
 
 enum TransactionType {
   addStock,
@@ -20,7 +22,7 @@ class InventoryTransaction {
   final String? userName;
   final String? userRole;
 
-  final String source; // ONLINE / OFFLINE
+  final TransactionSource source;
   final DateTime timestamp;
 
   InventoryTransaction({
@@ -56,12 +58,12 @@ class InventoryTransaction {
       userId: data['userId'],
       userName: data['userName'],
       userRole: data['userRole'],
-      source: data['source'] ?? 'ONLINE',
+      source: TransactionSourceX.fromString(data['source']),
       timestamp: (data['timestamp'] as Timestamp).toDate(),
     );
   }
 
-  // ================= OFFLINE (GetStorage) =================
+  // ================= OFFLINE =================
   factory InventoryTransaction.fromMap(Map<String, dynamic> map) {
     return InventoryTransaction(
       id: map['id'],
@@ -77,11 +79,12 @@ class InventoryTransaction {
       userId: map['userId'],
       userName: map['userName'],
       userRole: map['userRole'],
-      source: map['source'] ?? 'OFFLINE',
+      source: TransactionSourceX.fromString(map['source']),
       timestamp: DateTime.parse(map['timestamp']),
     );
   }
 
+  // ================= SERIALIZE =================
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -93,7 +96,7 @@ class InventoryTransaction {
       'userId': userId,
       'userName': userName,
       'userRole': userRole,
-      'source': source,
+      'source': source.value,
       'timestamp': timestamp.toIso8601String(),
     };
   }

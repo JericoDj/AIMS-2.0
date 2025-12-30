@@ -1,4 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+
+import '../../models/ItemModel.dart';
+import '../../providers/offline_inventory_provider.dart';
+import '../admin/dialogs/OfflineItemDialog.dart';
+import '../admin/widgets/ReusableButton.dart';
+
 
 class OfflineStockMonitoringPage extends StatelessWidget {
   const OfflineStockMonitoringPage({super.key});
@@ -8,40 +16,339 @@ class OfflineStockMonitoringPage extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Offline Stock Monitoring",
-          style: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.bold,
-            color: Colors.green,
-          ),
+        const SizedBox(height: 10),
+
+        // ---------------- PAGE TITLE ----------------
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Stock Monitoring",
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                ),
+                Text(
+                  "OFFLINE MODE – Local Database",
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+
+            Row(
+              children: [
+                ReusableButton(
+                  label: "Add\nItem",
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => const OfflineAddItemDialog(),
+                    );
+                  },
+                ),
+
+                const SizedBox(width: 10),
+
+                // ReusableButton(
+                //   label: "Inventory\nReport",
+                //   onTap: () {
+                //     showDialog(
+                //       context: context,
+                //       builder: (_) =>
+                //       const OfflineInventoryReportDialog(),
+                //     );
+                //   },
+                // ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 5),
-        const Text(
-          "OFFLINE MODE – Local Database",
-          style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+
+        const SizedBox(height: 20),
+
+        // ---------------- SEARCH + FILTERS ----------------
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                height: 45,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 10),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Search item...",
+                      icon: Icon(Icons.search),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 20),
+
+            _FilterChip(label: "Low Stock", color: Colors.orange),
+            const SizedBox(width: 10),
+            _FilterChip(label: "Out of Stock", color: Colors.red),
+            const SizedBox(width: 10),
+            _FilterChip(label: "Nearly Expiry", color: Colors.yellow),
+          ],
         ),
 
         const SizedBox(height: 30),
 
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(30),
-          decoration: BoxDecoration(
-            color: const Color(0xFFD0E8B5),
-            borderRadius: BorderRadius.circular(25),
-          ),
-          child: const Center(
-            child: Text(
-              "Offline Stock Monitoring UI Here",
-              style: TextStyle(
-                fontSize: 20,
-                color: Colors.green,
-              ),
+        // ---------------- TABLE ----------------
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFD0E8B5),
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: Column(
+              children: [
+                _tableHeader(),
+
+                Expanded(
+                  child: Consumer<OfflineInventoryProvider>(
+                    builder: (context, inventory, _) {
+                      if (inventory.loading) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+
+                      if (inventory.items.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            "No offline items found",
+                            style: TextStyle(fontSize: 18),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: inventory.items.length,
+                        itemBuilder: (context, index) {
+                          final item = inventory.items[index];
+                          return OfflineStockRow(item: item);
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ],
     );
   }
+
+
+
+
+  Widget _tableHeader() {
+    return Container(
+      height: 55,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.green[700],
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(25),
+          topRight: Radius.circular(25),
+        ),
+      ),
+      child: const Row(
+        children: [
+          _HeaderCell("Item", flex: 3),
+          _HeaderCell("Category", flex: 2),
+          _HeaderCell("Quantity", flex: 2),
+          _HeaderCell("Expiry", flex: 2),
+          _HeaderCell("QR Code", flex: 3),
+          _HeaderCell("Status", flex: 2),
+        ],
+      ),
+    );
+  }
 }
+
+//
+// ========================= FILTER CHIP =========================
+//
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _FilterChip({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color, width: 1),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+
+//
+// ========================= TABLE HEADER =========================
+//
+class _HeaderCell extends StatelessWidget {
+  final String text;
+  final int flex;
+
+  const _HeaderCell(this.text, {required this.flex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
+    );
+  }
+}
+
+
+//
+// ========================= STOCK ROW =========================
+//
+class OfflineStockRow extends StatelessWidget {
+  final ItemModel item;
+
+  const OfflineStockRow({super.key, required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        border: Border(
+          bottom: BorderSide(
+            color: Colors.white.withOpacity(0.7),
+            width: 1,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          _Cell(item.name, flex: 3),
+          _Cell(item.category, flex: 2),
+          _Cell(item.totalStock.toString(), flex: 2),
+          _Cell(item.nearestExpiryFormatted, flex: 2),
+
+          Expanded(
+            flex: 3,
+            child: const Icon(Icons.qr_code, color: Colors.grey),
+          ),
+
+          Expanded(
+            flex: 2,
+            child: _StatusBadge(qty: item.totalStock),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  final int qty;
+
+  const _StatusBadge({required this.qty});
+
+  String _statusText() {
+    if (qty == 0) return "Out of Stock";
+    if (qty <= 10) return "Low Stock";
+    return "Good";
+  }
+
+  Color _statusColor() {
+    if (qty == 0) return Colors.red;
+    if (qty <= 10) return Colors.orange;
+    return Colors.green[900]!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _statusColor();
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        _statusText(),
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+
+
+//
+// ========================= TABLE CELL =========================
+//
+class _Cell extends StatelessWidget {
+  final String text;
+  final int flex;
+
+  const _Cell(this.text, {required this.flex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        style: TextStyle(
+          color: Colors.green[900],
+          fontSize: 17,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+

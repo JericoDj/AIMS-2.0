@@ -73,6 +73,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   onTap: () {
                     showDialog(
                       context: context,
+
                       builder: (_) => AddItemDialog(parentContext: context),
                     );
                   },
@@ -158,7 +159,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                       _HeaderCell("Category", flex: 2),
                       _HeaderCell("Quantity", flex: 2),
                       _HeaderCell("Expiry", flex: 2),
-                      _HeaderCell("Barcode", flex: 3),
+                      _HeaderCell("QR Code", flex: 3),
                       _HeaderCell("Status", flex: 2),
                     ],
                   ),
