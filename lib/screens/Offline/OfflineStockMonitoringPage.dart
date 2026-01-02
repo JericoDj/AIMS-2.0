@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/ItemModel.dart';
 import '../../providers/offline_inventory_provider.dart';
+import '../../utils/enums/stock_filter_enum.dart';
 import '../admin/dialogs/OfflineItemDialog.dart';
 import '../admin/widgets/ReusableButton.dart';
 
@@ -18,6 +19,9 @@ class OfflineStockMonitoringPage extends StatefulWidget {
 }
 
 class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage> {
+  StockFilter _filter = StockFilter.all;
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -100,10 +104,15 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: const Padding(
+                child:  Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: TextField(
-                    decoration: InputDecoration(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase();
+                      });
+                    },
+                    decoration: const InputDecoration(
                       border: InputBorder.none,
                       hintText: "Search item...",
                       icon: Icon(Icons.search),
@@ -115,11 +124,37 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
 
             const SizedBox(width: 20),
 
-            _FilterChip(label: "Low Stock", color: Colors.orange),
+            _FilterChip(
+              label: "All",
+              color: Colors.green,
+              selected: _filter == StockFilter.all,
+              onTap: () => setState(() => _filter = StockFilter.all),
+            ),
             const SizedBox(width: 10),
-            _FilterChip(label: "Out of Stock", color: Colors.red),
+
+            _FilterChip(
+              label: "Low Stock",
+              color: Colors.orange,
+              selected: _filter == StockFilter.low,
+              onTap: () => setState(() => _filter = StockFilter.low),
+            ),
             const SizedBox(width: 10),
-            _FilterChip(label: "Nearly Expiry", color: Colors.yellow),
+
+            _FilterChip(
+              label: "Out of Stock",
+              color: Colors.red,
+              selected: _filter == StockFilter.out,
+              onTap: () => setState(() => _filter = StockFilter.out),
+            ),
+            const SizedBox(width: 10),
+
+            _FilterChip(
+              label: "Nearly Expiry",
+              color: Colors.yellow,
+              selected: _filter == StockFilter.expiry,
+              onTap: () => setState(() => _filter = StockFilter.expiry),
+            ),
+
           ],
         ),
 
@@ -140,30 +175,59 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
                   child: Consumer<OfflineInventoryProvider>(
                     builder: (context, inventory, _) {
                       if (inventory.loading) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
 
-                      if (inventory.items.isEmpty) {
+                      final List<ItemModel> filteredItems = () {
+                        List<ItemModel> base;
+
+                        switch (_filter) {
+                          case StockFilter.low:
+                            base = inventory.items.where((i) => i.isLowStock).toList();
+                            break;
+
+                          case StockFilter.out:
+                            base = inventory.items.where((i) => i.isOutOfStock).toList();
+                            break;
+
+                          case StockFilter.expiry:
+                            final now = DateTime.now();
+                            base = inventory.items.where((i) {
+                              final exp = i.nearestExpiry;
+                              return exp != null && exp.difference(now).inDays <= 30;
+                            }).toList();
+                            break;
+
+                          case StockFilter.all:
+                          default:
+                            base = inventory.items;
+                        }
+
+                        if (_searchQuery.isEmpty) return base;
+
+                        return base.where((item) {
+                          return item.name.toLowerCase().contains(_searchQuery) ||
+                              item.category.toLowerCase().contains(_searchQuery);
+                        }).toList();
+                      }();
+
+                      if (filteredItems.isEmpty) {
                         return const Center(
-                          child: Text(
-                            "No offline items found",
-                            style: TextStyle(fontSize: 18),
-                          ),
+                          child: Text("No offline items found", style: TextStyle(fontSize: 18)),
                         );
                       }
 
                       return ListView.builder(
-                        itemCount: inventory.items.length,
+                        itemCount: filteredItems.length,
                         itemBuilder: (context, index) {
-                          final item = inventory.items[index];
+                          final item = filteredItems[index];
                           return OfflineStockRow(item: item);
                         },
                       );
                     },
                   ),
                 ),
+
               ],
             ),
           ),
@@ -203,28 +267,40 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
 class _FilterChip extends StatelessWidget {
   final String label;
   final Color color;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _FilterChip({required this.label, required this.color});
+  const _FilterChip({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.3) : color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color, width: selected ? 2 : 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
 }
+
 
 
 //

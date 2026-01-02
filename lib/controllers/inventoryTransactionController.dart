@@ -77,6 +77,17 @@ class InventoryTransactionController {
     }
   }
 
+  Future<void> delete(String transactionId) async {
+    try {
+      await _firestore
+          .collection('transactions')
+          .doc(transactionId)
+          .delete();
+    } catch (_) {
+      // swallow error – do not crash UI
+    }
+  }
+
 
   /// Ensure role is always a STRING
   String? _safeRole(dynamic role) {

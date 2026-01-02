@@ -6,8 +6,10 @@ import 'package:aims2frontend/screens/admin/widgets/test/testDecryptionButton.da
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../controllers/inventoryTransactionReportController.dart';
 import '../../models/ItemModel.dart';
 import '../../providers/items_provider.dart';
+import '../../utils/enums/stock_filter_enum.dart';
 import 'dialogs/AddItemDialog.dart';
 import 'dialogs/InventoryDialog.dart';
 import 'dialogs/ItemDetailsDialog.dart';
@@ -21,6 +23,8 @@ class StockMonitoringPage extends StatefulWidget {
 }
 
 class _StockMonitoringPageState extends State<StockMonitoringPage> {
+  StockFilter _filter = StockFilter.all;
+  String _searchQuery = '';
   @override
   void initState() {
     super.initState();
@@ -30,6 +34,9 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
       context.read<InventoryProvider>().fetchItems(refresh: true);
     });
   }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -88,10 +95,20 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   onTap: () {
                     showDialog(
                       context: context,
-                      builder: (_) => const InventoryReportDialog(),
+                      builder: (_) => InventoryReportDialog(
+                        onGenerate: (start, end) async {
+                          await InventoryTransactionReportController
+                              .generateInventoryReport(
+                            context,
+                            start: start,
+                            end: end,
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
+
               ],
             ),
           ],
@@ -110,10 +127,15 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: const Padding(
+                child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: TextField(
-                    decoration: InputDecoration(
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value.trim().toLowerCase();
+                      });
+                    },
+                    decoration: const InputDecoration(
                       border: InputBorder.none,
                       hintText: "Search item...",
                       icon: Icon(Icons.search),
@@ -125,11 +147,37 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
             const SizedBox(width: 20),
 
-            _FilterChip(label: "Low Stock", color: Colors.orange),
+            _FilterChip(
+              label: "All",
+              color: Colors.green,
+              selected: _filter == StockFilter.all,
+              onTap: () => setState(() => _filter = StockFilter.all),
+            ),
             const SizedBox(width: 10),
-            _FilterChip(label: "Out of Stock", color: Colors.red),
+
+            _FilterChip(
+              label: "Low Stock",
+              color: Colors.orange,
+              selected: _filter == StockFilter.low,
+              onTap: () => setState(() => _filter = StockFilter.low),
+            ),
             const SizedBox(width: 10),
-            _FilterChip(label: "Nearly Expiry", color: Colors.yellow[800]!),
+
+            _FilterChip(
+              label: "Out of Stock",
+              color: Colors.red,
+              selected: _filter == StockFilter.out,
+              onTap: () => setState(() => _filter = StockFilter.out),
+            ),
+            const SizedBox(width: 10),
+
+            _FilterChip(
+              label: "Nearly Expiry",
+              color: Colors.yellow[800]!,
+              selected: _filter == StockFilter.expiry,
+              onTap: () => setState(() => _filter = StockFilter.expiry),
+            ),
+
           ],
         ),
 
@@ -177,7 +225,43 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                         );
                       }
 
-                      if (inventory.items.isEmpty) {
+                      // 🔹 APPLY FILTER HERE
+                      final List<ItemModel> filteredItems = () {
+                        List<ItemModel> base;
+
+                        switch (_filter) {
+                          case StockFilter.low:
+                            base = inventory.items.where((i) => i.isLowStock).toList();
+                            break;
+
+                          case StockFilter.out:
+                            base = inventory.items.where((i) => i.isOutOfStock).toList();
+                            break;
+
+                          case StockFilter.expiry:
+                            final now = DateTime.now();
+                            base = inventory.items.where((i) {
+                              final exp = i.nearestExpiry;
+                              return exp != null && exp.difference(now).inDays <= 30;
+                            }).toList();
+                            break;
+
+                          case StockFilter.all:
+                          default:
+                            base = inventory.items;
+                        }
+
+                        // 🔍 APPLY SEARCH
+                        if (_searchQuery.isEmpty) return base;
+
+                        return base.where((item) {
+                          return item.name.toLowerCase().contains(_searchQuery) ||
+                              item.category.toLowerCase().contains(_searchQuery);
+                        }).toList();
+                      }();
+
+
+                      if (filteredItems.isEmpty) {
                         return const Center(
                           child: Text(
                             "No items found",
@@ -187,9 +271,9 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                       }
 
                       return ListView.builder(
-                        itemCount: inventory.items.length,
+                        itemCount: filteredItems.length,
                         itemBuilder: (context, index) {
-                          final item = inventory.items[index];
+                          final item = filteredItems[index];
 
                           return StockRow(
                             item: item.name,
@@ -198,13 +282,13 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                             expiry: item.nearestExpiryFormatted,
                             barcodeUrl: item.barcodeImageUrl,
                             itemModel: item,
-
                           );
                         },
                       );
                     },
                   ),
                 ),
+
               ],
             ),
           ),
@@ -220,28 +304,40 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 class _FilterChip extends StatelessWidget {
   final String label;
   final Color color;
+  final bool selected;
+  final VoidCallback onTap;
 
-  const _FilterChip({required this.label, required this.color});
+  const _FilterChip({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color, width: 1),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.3) : color.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: color, width: selected ? 2 : 1),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
         ),
       ),
     );
   }
 }
+
 
 //
 // ========================= TABLE HEADER =========================
@@ -290,16 +386,23 @@ class StockRow extends StatelessWidget {
   });
 
   String _getStatus() {
-    if (qty == 0) return "Out of Stock";
-    if (qty <= 10) return "Low Stock";
+    if (itemModel.isOutOfStock) {
+      return "Out of Stock";
+    }
 
-    final exp = DateTime.tryParse(expiry);
-    if (exp != null && exp.difference(DateTime.now()).inDays <= 30) {
+    if (itemModel.isLowStock) {
+      return "Low Stock";
+    }
+
+    final expiryDate = itemModel.nearestExpiry;
+    if (expiryDate != null &&
+        expiryDate.difference(DateTime.now()).inDays <= 30) {
       return "Nearly Expiry";
     }
 
     return "Good";
   }
+
 
   Color _statusColor() {
     switch (_getStatus()) {
@@ -380,39 +483,45 @@ class StockRow extends StatelessWidget {
 
 
           // ================= STATUS =================
-          Expanded(
-            flex: 2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-              decoration: BoxDecoration(
-                color: _statusColor().withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _statusColor()),
-              ),
-              child: Text(
-                _getStatus(),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _statusColor(),
-                  fontWeight: FontWeight.bold,
+          Column(
+            children: [
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: _statusColor().withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _statusColor()),
+                  ),
+                  child: Text(
+                    _getStatus(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _statusColor(),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ),
-            ),
+
+              Expanded(
+                flex: 2,
+                child: TextButton.icon(
+                  icon: const Icon(Icons.info_outline, size: 18),
+                  label: const Text("Details"),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => ItemDetailsDialog(item: itemModel),
+                    );
+                  },
+                ),
+              )
+            ],
           ),
 
-      Expanded(
-        flex: 2,
-        child: TextButton.icon(
-          icon: const Icon(Icons.info_outline, size: 18),
-          label: const Text("Details"),
-          onPressed: () {
-            showDialog(
-              context: context,
-              builder: (_) => ItemDetailsDialog(item: itemModel),
-            );
-          },
-        ),
-      )],
+      ],
       ),
     );
   }

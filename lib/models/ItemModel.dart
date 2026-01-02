@@ -11,7 +11,7 @@ class ItemModel {
   final List<StockBatch> batches;
 
   // ✅ NEW
-  final int lowStockThreshold;
+  final int? lowStockThreshold;
 
   ItemModel({
     required this.id,
@@ -21,7 +21,7 @@ class ItemModel {
     this.barcodeImageUrl,
     this.nameNormalized,
     required this.batches,
-    this.lowStockThreshold = 10, // default safe value
+    this.lowStockThreshold, // default safe value
   });
 
   // ================= FIRESTORE =================
@@ -38,25 +38,27 @@ class ItemModel {
       lowStockThreshold: data['lowStockThreshold'] ?? 10,
       batches: (data['batches'] as List? ?? [])
           .map(
-            (e) => StockBatch.fromMap(
-          Map<String, dynamic>.from(e),
-        ),
+            (e) =>
+            StockBatch.fromMap(
+              Map<String, dynamic>.from(e),
+            ),
       )
           .toList(),
     );
   }
 
   // ================= LOCAL JSON =================
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'category': category,
-    'barcode': barcode,
-    'barcodeImageUrl': barcodeImageUrl,
-    'nameNormalized': nameNormalized,
-    'lowStockThreshold': lowStockThreshold,
-    'batches': batches.map((b) => b.toJson()).toList(),
-  };
+  Map<String, dynamic> toJson() =>
+      {
+        'id': id,
+        'name': name,
+        'category': category,
+        'barcode': barcode,
+        'barcodeImageUrl': barcodeImageUrl,
+        'nameNormalized': nameNormalized,
+        'lowStockThreshold': lowStockThreshold,
+        'batches': batches.map((b) => b.toJson()).toList(),
+      };
 
   factory ItemModel.fromJson(Map<String, dynamic> json) {
     return ItemModel(
@@ -69,9 +71,10 @@ class ItemModel {
       lowStockThreshold: json['lowStockThreshold'] ?? 10,
       batches: (json['batches'] as List? ?? [])
           .map(
-            (e) => StockBatch.fromJson(
-          Map<String, dynamic>.from(e),
-        ),
+            (e) =>
+            StockBatch.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
       )
           .toList(),
     );
@@ -100,9 +103,14 @@ class ItemModel {
     );
   }
 
+
+
   // ================= HELPERS =================
   int get totalStock =>
       batches.fold(0, (sum, b) => sum + b.quantity);
+
+  // ================= RESOLVED THRESHOLD =================
+  int get resolvedLowStockThreshold => lowStockThreshold ?? 10;
 
   List<StockBatch> get fifoBatches {
     final sorted = [...batches];
@@ -115,12 +123,15 @@ class ItemModel {
 
   String get nearestExpiryFormatted =>
       nearestExpiry != null
-          ? nearestExpiry!.toIso8601String().split('T').first
+          ? nearestExpiry!
+          .toIso8601String()
+          .split('T')
+          .first
           : '-';
 
   // ================= STATUS =================
   bool get isOutOfStock => totalStock == 0;
 
   bool get isLowStock =>
-      totalStock > 0 && totalStock <= lowStockThreshold;
+      totalStock > 0 && totalStock <= resolvedLowStockThreshold;
 }

@@ -1,10 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import '../controllers/inventoryTransactionController.dart';
 import '../models/TransactionModel.dart';
 
 class TransactionsProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  final InventoryTransactionController _controller =
+  InventoryTransactionController();
 
   final List<InventoryTransaction> _transactions = [];
   bool _loading = false;
@@ -19,6 +23,14 @@ class TransactionsProvider extends ChangeNotifier {
 
   bool get loading => _loading;
   bool get hasMore => _hasMore;
+
+  // ================= DELETE =================
+  Future<void> deleteTransaction(String id) async {
+    await _controller.delete(id);
+
+    _transactions.removeWhere((tx) => tx.id == id);
+    notifyListeners();
+  }
 
   /// ---------------- FETCH ----------------
   Future<void> fetchTransactions({bool refresh = false}) async {

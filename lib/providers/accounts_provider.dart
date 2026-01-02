@@ -87,23 +87,33 @@ class AccountsProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
+    print("trying to login");
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
 
+
+    print(credential);
     final uid = credential.user!.uid;
+
+
     final doc = await _firestore.collection('users').doc(uid).get();
 
     if (!doc.exists) {
       throw Exception('User record not found');
     }
 
-    final account = Account.fromMap(doc.data()!);
+    final account = Account.fromMap({
+      ...doc.data()!,
+      'id': doc.id, // ✅ REQUIRED
+    });
+
     _currentUser = account;
     _saveCurrentUser(account);
     notifyListeners();
   }
+
 
   void logout() {
     _currentUser = null;

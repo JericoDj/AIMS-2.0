@@ -25,6 +25,11 @@ class _OfflineStockActionDialogState
   final TextEditingController _scanCtrl = TextEditingController();
   final TextEditingController _qtyCtrl = TextEditingController();
 
+
+  final TextEditingController _expiryCtrl = TextEditingController();
+  final FocusNode _expiryFocus = FocusNode();
+  DateTime? _selectedExpiry;
+
   final FocusNode _scanFocus = FocusNode();
   final FocusNode _qtyFocus = FocusNode();
 
@@ -41,7 +46,13 @@ class _OfflineStockActionDialogState
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final provider = context.read<OfflineInventoryProvider>();
+
+      if (provider.items.isEmpty && !provider.loading) {
+        await provider.loadItems();
+      }
+
       if (mounted) {
         FocusScope.of(context).requestFocus(_scanFocus);
       }
@@ -79,6 +90,24 @@ class _OfflineStockActionDialogState
     return matches;
   }
 
+  Future<void> _pickExpiry() async {
+    final now = DateTime.now();
+
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: DateTime(now.year + 10),
+    );
+
+    if (picked != null) {
+      setState(() {
+        _selectedExpiry = picked;
+        _expiryCtrl.text = picked.toIso8601String().split('T').first;
+      });
+    }
+  }
+
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
     if (widget.mode == StockActionMode.view) {
@@ -90,10 +119,12 @@ class _OfflineStockActionDialogState
     if (qty == null || qty <= 0) return;
 
     if (widget.mode == StockActionMode.add) {
+      if (_selectedExpiry == null) return;
+
       await _inventory.addStock(
         itemId: item.id,
         quantity: qty,
-        expiry: DateTime.now().add(const Duration(days: 365)),
+        expiry: _selectedExpiry!,
       );
     }
 
@@ -137,6 +168,8 @@ class _OfflineStockActionDialogState
     _qtyCtrl.dispose();
     _scanFocus.dispose();
     _qtyFocus.dispose();
+    _expiryCtrl.dispose();
+    _expiryFocus.dispose();
     super.dispose();
   }
 
@@ -171,19 +204,17 @@ class _OfflineStockActionDialogState
             const SizedBox(height: 16),
 
             // ================= SCAN INPUT =================
+            // ================= SCAN INPUT =================
             RawKeyboardListener(
               focusNode: FocusNode(),
               onKey: (event) {
                 if (event is RawKeyDownEvent &&
-                    (event.logicalKey ==
-                        LogicalKeyboardKey.enter ||
-                        event.logicalKey ==
-                            LogicalKeyboardKey.numpadEnter)) {
+                    (event.logicalKey == LogicalKeyboardKey.enter ||
+                        event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
                   final value = _scanCtrl.text.trim();
                   if (value.isEmpty) return;
 
-                  final matches =
-                  _handleScanOrSearch(value);
+                  final matches = _handleScanOrSearch(value);
 
                   if (matches.length == 1) {
                     _selectItem(matches.first);
@@ -204,6 +235,38 @@ class _OfflineStockActionDialogState
                 ),
               ),
             ),
+
+
+            // ================= EXPIRY =================
+            if (widget.mode == StockActionMode.add) ...[
+              const SizedBox(height: 12),
+
+              RawKeyboardListener(
+                focusNode: FocusNode(),
+                onKey: (event) {
+                  if (event is RawKeyDownEvent &&
+                      (event.logicalKey == LogicalKeyboardKey.enter ||
+                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                    if (_selectedExpiry == null) {
+                      _pickExpiry(); // open date picker
+                    } else {
+                      FocusScope.of(context).requestFocus(_qtyFocus);
+                    }
+                  }
+                },
+                child: TextField(
+                  controller: _expiryCtrl,
+                  focusNode: _expiryFocus,
+                  readOnly: true,
+                  onTap: _pickExpiry,
+                  decoration: const InputDecoration(
+                    labelText: "Expiry Date",
+                    prefixIcon: Icon(Icons.calendar_today),
+                  ),
+                ),
+              ),
+            ],
+
 
             const SizedBox(height: 12),
 

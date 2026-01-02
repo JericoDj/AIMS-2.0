@@ -108,7 +108,7 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
                         itemCount: txProvider.transactions.length,
                         itemBuilder: (_, index) {
                           final tx = txProvider.transactions[index];
-                          return TransactionRow(tx: tx);
+                          return TransactionRow(tx: tx, onView: () {  }, onDelete: () {  },);
                         },
                       );
                     },

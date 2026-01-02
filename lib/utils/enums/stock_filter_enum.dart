@@ -1,0 +1,1 @@
+enum StockFilter { all, low, out, expiry }

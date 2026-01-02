@@ -10,20 +10,30 @@ import '../admin/InventoryPage.dart';
 import 'dialogs/offlineStockActionDialog.dart';
 
 
-class OfflineInventoryPage extends StatelessWidget {
+class OfflineInventoryPage extends StatefulWidget {
   const OfflineInventoryPage({super.key});
 
+  @override
+  State<OfflineInventoryPage> createState() => _OfflineInventoryPageState();
+}
+
+class _OfflineInventoryPageState extends State<OfflineInventoryPage> {
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OfflineTransactionsProvider>().loadTransactions();
+    });
+  }
 
   void _openStockDialog(BuildContext context, StockActionMode mode) {
     showDialog(
       context: context,
       barrierDismissible: true,
       builder: (_) => OfflineStockActionDialog(mode: mode),
-
     );
   }
-
-
   String _actionLabel(TransactionType type) {
     switch (type) {
       case TransactionType.addStock:

@@ -68,7 +68,7 @@ class InventoryProvider extends ChangeNotifier {
       _items.fold(0, (sum, item) => sum + item.totalStock);
 
   List<ItemModel> get lowStockItems =>
-      _items.where((i) => i.totalStock <= 10).toList();
+      _items.where((i) => i.isLowStock).toList();
 
   List<ItemModel> get nearlyExpiredItems {
     final now = DateTime.now();

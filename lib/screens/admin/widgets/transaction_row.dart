@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-
 import '../../../models/TransactionModel.dart';
-
 class TransactionRow extends StatelessWidget {
   final InventoryTransaction tx;
+  final VoidCallback onView;
+  final VoidCallback onDelete;
 
-  const TransactionRow({super.key, required this.tx});
+  const TransactionRow({
+    super.key,
+    required this.tx,
+    required this.onView,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,9 +41,7 @@ class TransactionRow extends StatelessWidget {
             child: Row(
               children: [
                 GestureDetector(
-                  onTap: () {
-                    // TODO: View dialog
-                  },
+                  onTap: onView,
                   child: Text(
                     "View",
                     style: TextStyle(
@@ -49,13 +52,11 @@ class TransactionRow extends StatelessWidget {
                 ),
                 const SizedBox(width: 25),
                 GestureDetector(
-                  onTap: () {
-                    // TODO: Delete (admin-only)
-                  },
+                  onTap: onDelete,
                   child: Text(
                     "Delete",
                     style: TextStyle(
-                      color: Colors.green[900],
+                      color: Colors.red[700],
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -67,7 +68,106 @@ class TransactionRow extends StatelessWidget {
       ),
     );
   }
+
+
+
+  // ================= VIEW DIALOG =================
+  void _showViewDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Transaction Details"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _detail("Item", tx.itemName),
+            _detail("Type", tx.type.name),
+            _detail("Quantity", tx.quantity?.toString() ?? '-'),
+            _detail("User", tx.userName ?? 'System'),
+            _detail(
+              "Date",
+              tx.timestamp.toIso8601String().split('T').first,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ================= DELETE CONFIRM =================
+  void _showDeleteDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Confirm Delete"),
+        content: Text(
+          "Are you sure you want to delete this transaction?\n\n"
+              "Item: ${tx.itemName}",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _detail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              "$label:",
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Expanded(child: Text(value)),
+        ],
+      ),
+    );
+  }
 }
 
+// ================= CELL TEXT =================
+class _CellText extends StatelessWidget {
+  final String text;
+  final int flex;
 
-class _CellText extends StatelessWidget { final String text; final int flex; const _CellText(this.text, {required this.flex}); @override Widget build(BuildContext context) { return Expanded( flex: flex, child: Text( text, style: TextStyle( fontSize: 17, color: Colors.green[900], fontWeight: FontWeight.w500, ), ), ); } }
+  const _CellText(this.text, {required this.flex});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 17,
+          color: Colors.green[900],
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}

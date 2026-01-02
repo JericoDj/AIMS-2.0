@@ -23,6 +23,10 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  print('🔥 Firebase apps: ${Firebase.apps}');
+
+
   final dir = await getApplicationDocumentsDirectory();
   final storageDir = Directory(dir.path);
 

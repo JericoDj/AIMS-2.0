@@ -1,7 +1,40 @@
+import 'package:aims2frontend/screens/admin/widgets/topDispensedBarCharts.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-class DashboardPage extends StatelessWidget {
+import '../../controllers/dashboardAnalyticsController.dart';
+import '../../models/ItemUsage.dart';
+import '../../providers/items_provider.dart';
+import '../../providers/transactions_provider.dart';
+
+class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});
+
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      context.read<InventoryProvider>().fetchItems(refresh: true);
+      context.read<TransactionsProvider>().fetchTransactions(refresh: true);
+
+      _loaded = true;
+    });
+  }
+
+
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +89,7 @@ class DashboardPage extends StatelessWidget {
                         child: Column(
                           children: [
                             const Text(
-                              "Stock Overview",
+                              "Current Month Usage Overview",
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
@@ -66,10 +99,25 @@ class DashboardPage extends StatelessWidget {
                             const SizedBox(height: 25),
 
                             Expanded(
-                              child: CustomPaint(
-                                painter: StockChartPainter(),
+                              child: Consumer<TransactionsProvider>(
+                                builder: (context, txProvider, _) {
+                                  final data =
+                                  DashboardAnalyticsController.topDispensedItems(txProvider);
+
+                                  if (data.isEmpty) {
+                                    return const Center(
+                                      child: Text(
+                                        'No dispense data this month',
+                                        style: TextStyle(color: Colors.grey),
+                                      ),
+                                    );
+                                  }
+
+                                  return TopDispensedBarChart(data: data);
+                                },
                               ),
                             ),
+
                           ],
                         ),
                       ),
@@ -86,38 +134,46 @@ class DashboardPage extends StatelessWidget {
                   double cardWidth = constraints.maxWidth / 3 - 20;
                   double cardHeight = screen.height * 0.2;
 
-                  return Container(
-                    height: cardHeight  ,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+                  return Consumer<InventoryProvider>(
+                    builder: (context, inventory, _) {
+                      final lowStockCount = inventory.lowStockItems.length;
+                      final outOfStockCount =
+                          inventory.items.where((i) => i.isOutOfStock).length;
+                      final expiringSoonCount = inventory.nearlyExpiredItems.length;
 
-                        DashboardStatCard(
-                          title: "Low Stock",
-                          value: "18",
-                          icon: Icons.warning_amber_rounded,
-                          iconColor: Colors.orange,
-                          width: cardWidth,
-                          height: cardHeight,
+                      return SizedBox(
+                        height: cardHeight,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            DashboardStatCard(
+                              title: "Low Stock",
+                              value: lowStockCount.toString(),
+                              icon: Icons.warning_amber_rounded,
+                              iconColor: Colors.orange,
+                              width: cardWidth,
+                              height: cardHeight,
+                            ),
+                            DashboardStatCard(
+                              title: "Out of Stock",
+                              value: outOfStockCount.toString(),
+                              icon: Icons.error_outline,
+                              iconColor: Colors.red,
+                              width: cardWidth,
+                              height: cardHeight,
+                            ),
+                            DashboardStatCard(
+                              title: "Expiring Soon",
+                              value: expiringSoonCount.toString(),
+                              icon: Icons.timer_outlined,
+                              iconColor: Colors.orange,
+                              width: cardWidth,
+                              height: cardHeight,
+                            ),
+                          ],
                         ),
-                        DashboardStatCard(
-                          title: "Out of Stock",
-                          value: "5",
-                          icon: Icons.error_outline,
-                          iconColor: Colors.red,
-                          width: cardWidth,
-                          height: cardHeight,
-                        ),
-                        DashboardStatCard(
-                          title: "Expiring Soon",
-                          value: "9",
-                          icon: Icons.timer_outlined,
-                          iconColor: Colors.orange,
-                          width: cardWidth,
-                          height: cardHeight,
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   );
                 },
               ),
@@ -274,26 +330,60 @@ class RecentTransactionRow extends StatelessWidget {
 
 //
 // ===================== CHART PAINTER =====================
+
 class StockChartPainter extends CustomPainter {
+  final List<ItemUsage> data;
+
+  StockChartPainter(this.data);
+
   @override
   void paint(Canvas canvas, Size size) {
-    final barColor = Paint()..color = Colors.green[800]!;
-    double barWidth = size.width * 0.15;
-    double spacing = size.width * 0.07;
+    if (data.isEmpty) return;
 
-    List<double> values = [80, 60, 40, 100, 70];
+    final barPaint = Paint()..color = Colors.green[700]!;
+    final textPainter = TextPainter(
+      textAlign: TextAlign.center,
+      textDirection: TextDirection.ltr,
+    );
 
-    for (int i = 0; i < values.length; i++) {
-      double left = i * (barWidth + spacing);
-      double top = size.height - (values[i] * 0.8);
+    final maxValue =
+    data.map((e) => e.totalDispensed).reduce((a, b) => a > b ? a : b);
 
-      canvas.drawRect(
-        Rect.fromLTWH(left, top, barWidth, values[i] * 0.8),
-        barColor,
+    final barWidth = size.width / (data.length * 1.6);
+    final spacing = barWidth * 0.6;
+    final chartHeight = size.height - 20;
+
+    for (int i = 0; i < data.length; i++) {
+      final value = data[i].totalDispensed;
+      final barHeight =
+      maxValue == 0 ? 0 : (value / maxValue) * chartHeight;
+
+      final left = i * (barWidth + spacing);
+      final top = chartHeight - barHeight;
+
+      // BAR
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(left, top, barWidth, barHeight.toDouble()),
+          const Radius.circular(6),
+        ),
+        barPaint,
+      );
+
+      // VALUE TEXT
+      textPainter.text = TextSpan(
+        text: value.toString(),
+        style: const TextStyle(fontSize: 10, color: Colors.black),
+      );
+      textPainter.layout();
+      textPainter.paint(
+        canvas,
+        Offset(left + (barWidth - textPainter.width) / 2, top - 14),
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant StockChartPainter oldDelegate) =>
+      oldDelegate.data != data;
 }
