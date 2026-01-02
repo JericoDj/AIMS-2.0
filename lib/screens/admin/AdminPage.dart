@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 // IMPORT ALL SUBPAGES
 import '../../providers/accounts_provider.dart';
+import '../../providers/notification_provider.dart';
 import '../../providers/sync_provider.dart';
 import '../Offline/OfflineInventoryPage.dart';
 import '../Offline/OfflineStockMonitoringPage.dart';
@@ -64,24 +65,13 @@ class _AdminPageState extends State<AdminPage> {
 
 
 
-  List<Map<String, dynamic>> notifications = [
-    {
-      "title": "Low Stock Alert",
-      "message": "Amoxicillin 500mg is below minimum threshold.",
-      "time": "10:45 AM",
-    },
-    {
-      "title": "New Transaction",
-      "message": "A new transaction has been recorded.",
-      "time": "9:20 AM",
-    },
-    {
-      "title": "Sync Completed",
-      "message": "Offline data synced successfully.",
-      "time": "Yesterday",
-    },
-  ];
   void _showNotificationPanel() {
+    // ✅ FETCH FIRST (outside build)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotificationProvider>().fetchNotifications();
+    });
+
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -92,72 +82,109 @@ class _AdminPageState extends State<AdminPage> {
             left: MediaQuery.sizeOf(context).width * 0.12,
           ),
           alignment: Alignment.topLeft,
-          child: Container(
-            width: MediaQuery.sizeOf(context).width * .30,
-            padding: const EdgeInsets.all(15),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
+          child: Consumer<NotificationProvider>(
+            builder: (context, notifProvider, _) {
+              // if (notifProvider.loading) {
+              //   return const Padding(
+              //     padding: EdgeInsets.all(30),
+              //     child: CircularProgressIndicator(),
+              //   );
+              // }
 
-                // ------------------ HEADER WITH CLOSE BUTTON ------------------
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Notifications",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Icon(Icons.close, size: 22),
-                    ),
-                  ],
+              return Container(
+                width: MediaQuery.sizeOf(context).width * .30,
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-
-                const SizedBox(height: 15),
-
-                // ------------------ EMPTY OR LIST ------------------
-                if (notifications.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(20),
-                    child: Text("No notifications available."),
-                  )
-                else
-                  ...notifications.map((n) {
-                    return Column(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // HEADER
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        ListTile(
-                          leading: const Icon(Icons.notifications_active, color: Colors.green),
-                          title: Text(
-                            n["title"],
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(n["message"]),
-                          trailing: Text(
-                            n["time"],
-                            style: const TextStyle(fontSize: 11),
+                        const Text(
+                          "Notifications",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const Divider(height: 5),
+                        GestureDetector(
+                          onTap: () => Navigator.pop(context),
+                          child: const Icon(Icons.close, size: 22),
+                        ),
                       ],
-                    );
-                  }).toList(),
-              ],
-            ),
+                    ),
+
+                    const SizedBox(height: 15),
+
+                    if (notifProvider.notifications.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Text("No notifications available."),
+                      )
+                    else
+                      ...notifProvider.notifications.map((n) {
+                        return Column(
+                          children: [
+                            ListTile(
+                              leading: Icon(
+                                n.read
+                                    ? Icons.notifications_none
+                                    : Icons.notifications_active,
+                                color: n.read
+                                    ? Colors.grey
+                                    : Colors.green,
+                              ),
+                              title: Text(
+                                n.title,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              subtitle: Text(n.message),
+                              trailing: Text(
+                                _formatTime(n.createdAt),
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                              onTap: () {
+                                context
+                                    .read<NotificationProvider>()
+                                    .markAsRead(n.id);
+                              },
+                            ),
+                            const Divider(height: 5),
+                          ],
+                        );
+                      }).toList(),
+                  ],
+                ),
+              );
+            },
           ),
         );
       },
     );
   }
+
+  String _formatTime(DateTime time) {
+    final now = DateTime.now();
+    final diff = now.difference(time);
+
+    if (diff.inMinutes < 60) {
+      return '${diff.inMinutes}m ago';
+    } else if (diff.inHours < 24) {
+      return '${diff.inHours}h ago';
+    } else {
+      return '${diff.inDays}d ago';
+    }
+  }
+
+
 
   @override
   void initState() {
@@ -256,7 +283,7 @@ class _AdminPageState extends State<AdminPage> {
                   ),
                   CircleAvatar(
                     radius: 40,
-                    backgroundImage: AssetImage("assets/JericoDeJesus.png"),
+                    backgroundImage: AssetImage("assets/Avatar2.jpeg"),
                   ),
                 ],
               ),

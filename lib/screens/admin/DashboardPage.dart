@@ -15,19 +15,24 @@ class DashboardPage extends StatefulWidget {
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  bool _loaded = false;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted || _initialized) return;
+      _initialized = true;
 
-      context.read<InventoryProvider>().fetchItems(refresh: true);
-      context.read<TransactionsProvider>().fetchTransactions(refresh: true);
+      final inventory = context.read<InventoryProvider>();
+      final transactions = context.read<TransactionsProvider>();
 
-      _loaded = true;
+      await inventory.fetchItems(refresh: true);
+      await transactions.fetchTransactions(refresh: true);
+
+      // 🔔 Optional: trigger stock notification check here
+      await inventory.checkAndSendStockNotifications(context);
     });
   }
 

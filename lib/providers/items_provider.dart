@@ -1,7 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/ItemModel.dart';
+import 'notification_provider.dart';
 
 
 
@@ -20,7 +22,10 @@ class InventoryProvider extends ChangeNotifier {
   bool get hasMore => _hasMore;
 
   // ================= FETCH =================
-  Future<void> fetchItems({bool refresh = false}) async {
+  Future<void> fetchItems({
+    bool refresh = false,
+    BuildContext? context, // 👈 pass context ONCE
+  }) async {
     if (_loading) return;
 
     if (refresh) {
@@ -48,9 +53,17 @@ class InventoryProvider extends ChangeNotifier {
 
     if (snapshot.docs.isNotEmpty) {
       _lastDoc = snapshot.docs.last;
-      _items.addAll(
-        snapshot.docs.map((e) => ItemModel.fromFirestore(e)).toList(),
-      );
+
+      final fetchedItems = snapshot.docs
+          .map((e) => ItemModel.fromFirestore(e))
+          .toList();
+
+      _items.addAll(fetchedItems);
+
+      // 🔔 TRIGGER NOTIFICATION CHECK (SAFE)
+      if (context != null) {
+        await _handleLowStockNotifications(fetchedItems, context);
+      }
     }
 
     if (snapshot.docs.length < _limit) {
@@ -60,6 +73,7 @@ class InventoryProvider extends ChangeNotifier {
     _loading = false;
     notifyListeners();
   }
+
 
   // ================= HELPERS =================
   int get totalItemCount => _items.length;
@@ -79,6 +93,38 @@ class InventoryProvider extends ChangeNotifier {
     }).toList();
   }
 
+
+  Future<void> checkAndSendStockNotifications(
+      BuildContext context,
+      ) async {
+    final notifProvider = context.read<NotificationProvider>();
+
+    for (final item in _items) {
+      // 🔔 LOW STOCK DETECTED (ONCE)
+      if (item.isLowStock && !item.lowStockNotified) {
+        await _firestore.collection('items').doc(item.id).update({
+          'lowStockNotified': true,
+        });
+
+        await notifProvider.createNotification(
+          itemId: item.id,
+          itemName: item.name,
+          type: 'LOW_STOCK',
+          message:
+          '${item.name} is low on stock (${item.totalStock} remaining)',
+        );
+      }
+
+      // 🔄 RESET FLAG WHEN STOCK RECOVERS
+      if (!item.isLowStock && item.lowStockNotified) {
+        await _firestore.collection('items').doc(item.id).update({
+          'lowStockNotified': false,
+        });
+      }
+    }
+  }
+
+
   Future<void> updateLowStockThreshold({
     required String itemId,
     required int value,
@@ -96,6 +142,39 @@ class InventoryProvider extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+
+  Future<void> _handleLowStockNotifications(
+      List<ItemModel> items,
+      BuildContext context,
+      ) async {
+    final notifProvider = context.read<NotificationProvider>();
+
+    for (final item in items) {
+      // 🔔 LOW STOCK TRIGGER
+      if (item.isLowStock && !item.lowStockNotified) {
+        await _firestore.collection('items').doc(item.id).update({
+          'lowStockNotified': true,
+        });
+
+        await notifProvider.createNotification(
+          itemId: item.id,
+          itemName: item.name,
+          type: 'LOW_STOCK',
+          message:
+          '${item.name} is low on stock (${item.totalStock} remaining)',
+        );
+      }
+
+      // 🔄 RESET FLAG WHEN STOCK RECOVERS
+      if (!item.isLowStock && item.lowStockNotified) {
+        await _firestore.collection('items').doc(item.id).update({
+          'lowStockNotified': false,
+        });
+      }
+    }
+  }
+
 
 
 

@@ -26,7 +26,8 @@ class ManageAccountsPage extends StatelessWidget {
                 CircleAvatar(
                   radius: 45,
                   backgroundImage: AssetImage(
-                    currentUser.image ?? 'assets/JericoDeJesus.png',
+                    // currentUser.image ??
+                        'assets/Avatar2.jpeg',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -72,7 +73,9 @@ class ManageAccountsPage extends StatelessWidget {
                   Column(
                     children: [
                       _UserRow(
-                        image: accounts[index].image ?? 'assets/JericoDeJesus.png',
+                        image:
+                        // accounts[index].image ??
+                            'assets/Avatar2.jpeg',
                         name: accounts[index].fullName,
                         role: accounts[index].role.name.toUpperCase(),
                         onEdit: () {

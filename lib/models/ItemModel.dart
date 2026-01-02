@@ -10,8 +10,11 @@ class ItemModel {
   final String? nameNormalized;
   final List<StockBatch> batches;
 
-  // ✅ NEW
-  final int? lowStockThreshold;
+  // 🔔 LOW STOCK CONFIG
+  final int lowStockThreshold;
+
+  // 🔔 NOTIFICATION FLAG
+  final bool lowStockNotified;
 
   ItemModel({
     required this.id,
@@ -21,7 +24,8 @@ class ItemModel {
     this.barcodeImageUrl,
     this.nameNormalized,
     required this.batches,
-    this.lowStockThreshold, // default safe value
+    this.lowStockThreshold = 10,
+    this.lowStockNotified = false,
   });
 
   // ================= FIRESTORE =================
@@ -36,29 +40,28 @@ class ItemModel {
       barcodeImageUrl: data['barcode_image_url'],
       nameNormalized: data['name_key'],
       lowStockThreshold: data['lowStockThreshold'] ?? 10,
+      lowStockNotified: data['lowStockNotified'] ?? false,
       batches: (data['batches'] as List? ?? [])
           .map(
-            (e) =>
-            StockBatch.fromMap(
-              Map<String, dynamic>.from(e),
-            ),
+            (e) => StockBatch.fromMap(
+          Map<String, dynamic>.from(e),
+        ),
       )
           .toList(),
     );
   }
 
-  // ================= LOCAL JSON =================
-  Map<String, dynamic> toJson() =>
-      {
-        'id': id,
-        'name': name,
-        'category': category,
-        'barcode': barcode,
-        'barcodeImageUrl': barcodeImageUrl,
-        'nameNormalized': nameNormalized,
-        'lowStockThreshold': lowStockThreshold,
-        'batches': batches.map((b) => b.toJson()).toList(),
-      };
+  // ================= FIRESTORE / LOCAL JSON =================
+  Map<String, dynamic> toJson() => {
+    'name': name,
+    'category': category,
+    'barcode': barcode,
+    'barcode_image_url': barcodeImageUrl,
+    'name_key': nameNormalized,
+    'lowStockThreshold': lowStockThreshold,
+    'lowStockNotified': lowStockNotified,
+    'batches': batches.map((b) => b.toJson()).toList(),
+  };
 
   factory ItemModel.fromJson(Map<String, dynamic> json) {
     return ItemModel(
@@ -69,12 +72,12 @@ class ItemModel {
       barcodeImageUrl: json['barcodeImageUrl'],
       nameNormalized: json['nameNormalized'],
       lowStockThreshold: json['lowStockThreshold'] ?? 10,
+      lowStockNotified: json['lowStockNotified'] ?? false,
       batches: (json['batches'] as List? ?? [])
           .map(
-            (e) =>
-            StockBatch.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
+            (e) => StockBatch.fromJson(
+          Map<String, dynamic>.from(e),
+        ),
       )
           .toList(),
     );
@@ -89,6 +92,7 @@ class ItemModel {
     String? nameNormalized,
     List<StockBatch>? batches,
     int? lowStockThreshold,
+    bool? lowStockNotified,
   }) {
     return ItemModel(
       id: id,
@@ -98,12 +102,10 @@ class ItemModel {
       barcodeImageUrl: barcodeImageUrl ?? this.barcodeImageUrl,
       nameNormalized: nameNormalized ?? this.nameNormalized,
       batches: batches ?? this.batches,
-      lowStockThreshold:
-      lowStockThreshold ?? this.lowStockThreshold,
+      lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
+      lowStockNotified: lowStockNotified ?? this.lowStockNotified,
     );
   }
-
-
 
   // ================= HELPERS =================
   int get totalStock =>
@@ -123,15 +125,12 @@ class ItemModel {
 
   String get nearestExpiryFormatted =>
       nearestExpiry != null
-          ? nearestExpiry!
-          .toIso8601String()
-          .split('T')
-          .first
+          ? nearestExpiry!.toIso8601String().split('T').first
           : '-';
 
   // ================= STATUS =================
   bool get isOutOfStock => totalStock == 0;
 
   bool get isLowStock =>
-      totalStock > 0 && totalStock <= resolvedLowStockThreshold;
+      totalStock > 0 && totalStock <= lowStockThreshold;
 }

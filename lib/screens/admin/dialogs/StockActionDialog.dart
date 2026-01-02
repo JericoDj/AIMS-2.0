@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../../controllers/inventoryController.dart';
 import '../../../models/ItemModel.dart';
 import '../../../providers/items_provider.dart';
+import '../../../providers/notification_provider.dart';
 import '../../../utils/enums/stock_actions_enum.dart';
 
 class StockActionDialog extends StatefulWidget {
@@ -103,6 +104,8 @@ class _StockActionDialogState extends State<StockActionDialog> {
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
     final inventory = InventoryController();
+    final notifProvider = context.read<NotificationProvider>();
+    final inventoryProvider = context.read<InventoryProvider>();
 
     if (widget.mode == StockActionMode.view) {
       _showItemDetails(item);
@@ -112,6 +115,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
     final qty = int.tryParse(_qtyCtrl.text);
     if (qty == null || qty <= 0) return;
 
+    // ================= ADD STOCK =================
     if (widget.mode == StockActionMode.add) {
       if (_selectedExpiry == null) return;
 
@@ -120,18 +124,48 @@ class _StockActionDialogState extends State<StockActionDialog> {
         quantity: qty,
         expiry: _selectedExpiry!,
       );
+
+      // 🔔 CREATE ADD-STOCK NOTIFICATION
+      await notifProvider.createNotification(
+        itemId: item.id,
+        itemName: item.name,
+        type: 'STOCK_ADDED',
+        message: 'Added $qty pcs to ${item.name}',
+      );
     }
 
+    // ================= DISPENSE STOCK =================
     if (widget.mode == StockActionMode.dispense) {
       await inventory.dispenseStock(
         itemId: item.id,
         quantity: qty,
       );
+
+      // 🔔 CREATE DISPENSE NOTIFICATION
+      await notifProvider.createNotification(
+        itemId: item.id,
+        itemName: item.name,
+        type: 'DISPENSE',
+        message: 'Dispensed $qty pcs from ${item.name}',
+      );
+
+      // 🔄 Refresh inventory
+      await inventoryProvider.fetchItems(refresh: true);
+
+      // 🔔 LOW-STOCK / OUT-OF-STOCK CHECK
+      await inventoryProvider.checkAndSendStockNotifications(context);
     }
 
-    context.read<InventoryProvider>().fetchItems(refresh: true);
+    // 🔄 Refresh after add (optional but safe)
+    if (widget.mode == StockActionMode.add) {
+      await inventoryProvider.fetchItems(refresh: true);
+    }
+
     Navigator.pop(context);
   }
+
+
+
 
   void _showItemDetails(ItemModel item) {
     showDialog(

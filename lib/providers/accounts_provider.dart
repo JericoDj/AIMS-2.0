@@ -141,7 +141,7 @@ class AccountsProvider extends ChangeNotifier {
       fullName: fullName,
       email: email,
       role: role,
-      image: 'assets/JericoDeJesus.png',
+      image: 'assets/Avatar2.jpeg',
       createdAt: DateTime.now(),
     );
 

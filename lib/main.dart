@@ -1,5 +1,6 @@
 import 'package:aims2frontend/providers/accounts_provider.dart';
 import 'package:aims2frontend/providers/items_provider.dart';
+import 'package:aims2frontend/providers/notification_provider.dart';
 import 'package:aims2frontend/providers/offline_inventory_provider.dart';
 import 'package:aims2frontend/providers/offline_transaction_provider.dart';
 import 'package:aims2frontend/providers/sync_provider.dart';
@@ -59,6 +60,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => SyncRequestProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => NotificationProvider(),
         ),
       ],
       child: Builder(
