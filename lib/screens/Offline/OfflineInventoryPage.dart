@@ -6,7 +6,8 @@ import '../../providers/offline_transaction_provider.dart';
 import '../../utils/enums/stock_actions_enum.dart';
 import '../admin/DashboardPage.dart';
 import '../admin/InventoryPage.dart';
-import '../admin/dialogs/StockActionDialog.dart';
+
+import 'dialogs/offlineStockActionDialog.dart';
 
 
 class OfflineInventoryPage extends StatelessWidget {
@@ -17,7 +18,8 @@ class OfflineInventoryPage extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (_) => StockActionDialog(mode: mode),
+      builder: (_) => OfflineStockActionDialog(mode: mode),
+
     );
   }
 

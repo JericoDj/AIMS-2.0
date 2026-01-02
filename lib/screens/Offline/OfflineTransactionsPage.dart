@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/TransactionModel.dart';
-
 import '../../providers/offline_transaction_provider.dart';
 import '../admin/widgets/transaction_row.dart';
-import '../admin/widgets/ReusableButton.dart';
 
 class OfflineTransactionsPage extends StatefulWidget {
   const OfflineTransactionsPage({super.key});
@@ -20,7 +18,7 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
   void initState() {
     super.initState();
 
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<OfflineTransactionsProvider>().loadTransactions();
     });
   }
@@ -34,11 +32,11 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
       children: [
         const SizedBox(height: 10),
 
-        // ---------------- PAGE TITLE ----------------
+        // ================= TITLE =================
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Column(
+          children: const [
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
@@ -58,46 +56,23 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
                 ),
               ],
             ),
-            // ReusableButton(
-            //   label: "Transaction\nReport",
-            //   onTap: () {},
-            // ),
           ],
         ),
 
         const SizedBox(height: 20),
 
-        // ---------------- SEARCH + FILTER ----------------
+        // ================= SEARCH + FILTER =================
         Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 45,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 10),
-                  child: TextField(
-                    decoration: InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Search transaction...",
-                      icon: Icon(Icons.search),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 20),
-            const _TypeFilter(),
+          children: const [
+            Expanded(child: _SearchField()),
+            SizedBox(width: 20),
+            _TypeFilter(),
           ],
         ),
 
         const SizedBox(height: 30),
 
-        // ---------------- TABLE ----------------
+        // ================= TABLE =================
         Expanded(
           child: Container(
             decoration: BoxDecoration(
@@ -109,27 +84,33 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
                 const _TableHeader(),
 
                 Expanded(
-                  child: txProvider.loading &&
-                      txProvider.transactions.isEmpty
-                      ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                      : txProvider.transactions.isEmpty
-                      ? const Center(
-                    child: Text(
-                      "No offline transactions found",
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  )
-                      : ListView.builder(
-                    itemCount: txProvider.transactions.length,
-                    itemBuilder: (_, index) {
-                      final tx =
-                      txProvider.transactions[index];
-                      return TransactionRow(tx: tx);
+                  child: Builder(
+                    builder: (_) {
+                      if (txProvider.loading) {
+                        return const Center(
+                          child: CircularProgressIndicator(),
+                        );
+                      }
+
+                      if (txProvider.transactions.isEmpty) {
+                        return const Center(
+                          child: Text(
+                            "No offline transactions found",
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        itemCount: txProvider.transactions.length,
+                        itemBuilder: (_, index) {
+                          final tx = txProvider.transactions[index];
+                          return TransactionRow(tx: tx);
+                        },
+                      );
                     },
                   ),
                 ),
@@ -141,36 +122,6 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
     );
   }
 }
-
-class _TypeFilter extends StatelessWidget {
-  const _TypeFilter();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 15),
-      height: 45,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<TransactionType>(
-          hint: const Text("Filter Type"),
-          items: TransactionType.values.map((t) {
-            return DropdownMenuItem(
-              value: t,
-              child: Text(t.name.toUpperCase()),
-            );
-          }).toList(),
-          onChanged: (_) {},
-        ),
-      ),
-    );
-  }
-}
-
 
 
 class _TableHeader extends StatelessWidget {
@@ -218,6 +169,65 @@ class _HeaderText extends StatelessWidget {
           fontSize: 18,
           color: Colors.white,
           fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class _SearchField extends StatelessWidget {
+  const _SearchField();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 45,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 10),
+        child: TextField(
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            hintText: "Search transaction...",
+            icon: Icon(Icons.search),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class _TypeFilter extends StatelessWidget {
+  const _TypeFilter();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 15),
+      height: 45,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<TransactionType>(
+          hint: const Text("Filter Type"),
+          items: TransactionType.values.map((t) {
+            return DropdownMenuItem(
+              value: t,
+              child: Text(t.name.toUpperCase()),
+            );
+          }).toList(),
+          onChanged: (_) {}, // hook later
         ),
       ),
     );

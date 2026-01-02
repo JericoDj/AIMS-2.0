@@ -6,9 +6,11 @@ import 'package:aims2frontend/screens/admin/widgets/test/testDecryptionButton.da
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/ItemModel.dart';
 import '../../providers/items_provider.dart';
 import 'dialogs/AddItemDialog.dart';
 import 'dialogs/InventoryDialog.dart';
+import 'dialogs/ItemDetailsDialog.dart';
 import 'widgets/ReusableButton.dart';
 
 class StockMonitoringPage extends StatefulWidget {
@@ -195,6 +197,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                             qty: item.totalStock,
                             expiry: item.nearestExpiryFormatted,
                             barcodeUrl: item.barcodeImageUrl,
+                            itemModel: item,
 
                           );
                         },
@@ -274,6 +277,7 @@ class StockRow extends StatelessWidget {
   final int qty;
   final String expiry;
   final String? barcodeUrl;
+  final ItemModel itemModel; // 🔑 pass whole item
 
   const StockRow({
     super.key,
@@ -281,6 +285,7 @@ class StockRow extends StatelessWidget {
     required this.category,
     required this.qty,
     required this.expiry,
+    required this.itemModel,
     this.barcodeUrl,
   });
 
@@ -394,7 +399,20 @@ class StockRow extends StatelessWidget {
               ),
             ),
           ),
-        ],
+
+      Expanded(
+        flex: 2,
+        child: TextButton.icon(
+          icon: const Icon(Icons.info_outline, size: 18),
+          label: const Text("Details"),
+          onPressed: () {
+            showDialog(
+              context: context,
+              builder: (_) => ItemDetailsDialog(item: itemModel),
+            );
+          },
+        ),
+      )],
       ),
     );
   }

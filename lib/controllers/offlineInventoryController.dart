@@ -7,6 +7,8 @@ import '../models/TransactionModel.dart';
 import '../providers/offline_transaction_provider.dart';
 
 import '../utils/enums/transaction_source_enum.dart';
+import '../utils/offline_inventory_storage.dart';
+import '../utils/offline_qr_util.dart';
 
 class OfflineInventoryController {
   static final List<ItemModel> _items = [];
@@ -20,6 +22,20 @@ class OfflineInventoryController {
         .trim();
   }
 
+  // ================= INIT =================
+  Future<void> init() async {
+    if (_items.isNotEmpty) return;
+
+    debugPrint('📦 [OFFLINE] Loading items from disk...');
+    final loaded = await OfflineInventoryStorage.load();
+
+    _items
+      ..clear()
+      ..addAll(loaded);
+
+    debugPrint('✅ [OFFLINE] Loaded ${_items.length} items');
+  }
+
   // ================= CREATE ITEM =================
   Future<String> createItem({
     required String name,
@@ -29,17 +45,23 @@ class OfflineInventoryController {
 
     final itemId = _uuid.v4();
 
+    // ✅ Generate offline QR (SAME payload as online)
+    final qrPath = await OfflineQrUtil.generateAndSaveQr(
+      itemId: itemId,
+    );
+
     final item = ItemModel(
       id: itemId,
       name: name,
       category: category,
-      barcode: null,
-      barcodeImageUrl: null,
+      barcode: itemId,               // payload
+      barcodeImageUrl: qrPath,        // local file path
       nameNormalized: normalizeItemName(name),
       batches: [],
     );
 
     _items.add(item);
+    await OfflineInventoryStorage.save(_items);
 
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(
@@ -102,6 +124,8 @@ class OfflineInventoryController {
       ..clear()
       ..addAll(updatedBatches);
 
+    await OfflineInventoryStorage.save(_items);
+
     // 🧾 Log transaction
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(
@@ -161,6 +185,8 @@ class OfflineInventoryController {
       ..clear()
       ..addAll(updatedBatches);
 
+    await OfflineInventoryStorage.save(_items);
+
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(
         source: TransactionSource.offline,
@@ -180,6 +206,8 @@ class OfflineInventoryController {
     required String itemName,
   }) async {
     _items.removeWhere((i) => i.id == itemId);
+
+    await OfflineInventoryStorage.save(_items);
 
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(

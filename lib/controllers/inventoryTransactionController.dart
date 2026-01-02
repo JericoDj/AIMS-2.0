@@ -70,6 +70,14 @@ class InventoryTransactionController {
     });
   }
 
+
+  Future<void> syncAll(List<InventoryTransaction> list) async {
+    for (final tx in list) {
+      await sync(tx);
+    }
+  }
+
+
   /// Ensure role is always a STRING
   String? _safeRole(dynamic role) {
     if (role == null) return null;

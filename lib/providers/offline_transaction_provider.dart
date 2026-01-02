@@ -1,5 +1,7 @@
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
+
 import '../models/TransactionModel.dart';
+import '../utils/offline_transactions_storage.dart';
 
 class OfflineTransactionsProvider extends ChangeNotifier {
   // ================= SINGLETON =================
@@ -7,11 +9,12 @@ class OfflineTransactionsProvider extends ChangeNotifier {
   OfflineTransactionsProvider._internal();
 
   factory OfflineTransactionsProvider() => instance;
-
   OfflineTransactionsProvider._internal();
 
   // ================= STATE =================
   bool _loading = false;
+  bool _initialized = false;
+
   final List<InventoryTransaction> _transactions = [];
 
   // ================= GETTERS =================
@@ -20,30 +23,38 @@ class OfflineTransactionsProvider extends ChangeNotifier {
   List<InventoryTransaction> get transactions =>
       List.unmodifiable(_transactions);
 
-  List<InventoryTransaction> latest({int limit = 5}) {
-    return _transactions.take(limit).toList();
-  }
+  List<InventoryTransaction> latest({int limit = 5}) =>
+      _transactions.take(limit).toList();
 
-  // ================= ACTIONS =================
-  void loadTransactions() {
+  // ================= LOAD =================
+  Future<void> loadTransactions() async {
+    if (_initialized || _loading) return;
+
     _loading = true;
     notifyListeners();
 
-    // TODO: Load from SQLite
-    // Example:
-    // _transactions = await transactionDao.getAll();
+    final loaded = await OfflineTransactionsStorage.load();
 
+    _transactions
+      ..clear()
+      ..addAll(loaded.reversed); // newest first
+
+    _initialized = true;
     _loading = false;
     notifyListeners();
   }
 
-  void add(InventoryTransaction tx) {
-    _transactions.insert(0, tx); // newest first
+  // ================= ADD =================
+  Future<void> add(InventoryTransaction tx) async {
+    _transactions.insert(0, tx);
+    await OfflineTransactionsStorage.save(_transactions);
     notifyListeners();
   }
 
-  void clear() {
+  // ================= CLEAR =================
+  Future<void> clear() async {
     _transactions.clear();
+    await OfflineTransactionsStorage.clear();
     notifyListeners();
   }
 }

@@ -2,31 +2,31 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
-import '../../../controllers/inventoryController.dart';
+import '../../../controllers/offlineInventoryController.dart';
 import '../../../models/ItemModel.dart';
-import '../../../providers/items_provider.dart';
+import '../../../providers/offline_inventory_provider.dart';
 import '../../../utils/enums/stock_actions_enum.dart';
 
-class StockActionDialog extends StatefulWidget {
+class OfflineStockActionDialog extends StatefulWidget {
   final StockActionMode mode;
 
-  const StockActionDialog({super.key, required this.mode});
+  const OfflineStockActionDialog({
+    super.key,
+    required this.mode,
+  });
 
   @override
-  State<StockActionDialog> createState() => _StockActionDialogState();
+  State<OfflineStockActionDialog> createState() =>
+      _OfflineStockActionDialogState();
 }
 
-class _StockActionDialogState extends State<StockActionDialog> {
+class _OfflineStockActionDialogState
+    extends State<OfflineStockActionDialog> {
   final TextEditingController _scanCtrl = TextEditingController();
-  final FocusNode _scanFocus = FocusNode();
-
-  final FocusNode _qtyFocus = FocusNode();
   final TextEditingController _qtyCtrl = TextEditingController();
 
-  // ✅ MISSING FIELDS (FIX)
-  final TextEditingController _expiryCtrl = TextEditingController();
-  final FocusNode _expiryFocus = FocusNode();
-  DateTime? _selectedExpiry;
+  final FocusNode _scanFocus = FocusNode();
+  final FocusNode _qtyFocus = FocusNode();
 
   ItemModel? _selectedItem;
 
@@ -34,17 +34,14 @@ class _StockActionDialogState extends State<StockActionDialog> {
   int _selectedIndex = 0;
   int? _hoveredIndex;
 
+  final OfflineInventoryController _inventory =
+  OfflineInventoryController();
+
   @override
   void initState() {
     super.initState();
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      final provider = context.read<InventoryProvider>();
-
-      if (provider.items.isEmpty && !provider.loading) {
-        await provider.fetchItems(refresh: true);
-      }
-
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         FocusScope.of(context).requestFocus(_scanFocus);
       }
@@ -62,12 +59,13 @@ class _StockActionDialogState extends State<StockActionDialog> {
     }
   }
 
-  // ================= SCAN / SEARCH =================
+  // ================= SEARCH / SCAN =================
   List<ItemModel> _handleScanOrSearch(String value) {
     final query = value.trim();
     if (query.isEmpty) return [];
 
-    final items = context.read<InventoryProvider>().items;
+    final items =
+        context.read<OfflineInventoryProvider>().items;
 
     final matches = items.where((item) {
       return item.name.toLowerCase().contains(query.toLowerCase());
@@ -76,34 +74,13 @@ class _StockActionDialogState extends State<StockActionDialog> {
     setState(() {
       _filteredItems = matches;
       _selectedIndex = 0;
-      _selectedItem = matches.isNotEmpty ? matches[0] : null;
     });
 
     return matches;
   }
 
-  Future<void> _pickExpiry() async {
-    final now = DateTime.now();
-
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: now,
-      firstDate: now,
-      lastDate: DateTime(now.year + 10),
-    );
-
-    if (picked != null) {
-      setState(() {
-        _selectedExpiry = picked;
-        _expiryCtrl.text = picked.toIso8601String().split('T').first;
-      });
-    }
-  }
-
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
-    final inventory = InventoryController();
-
     if (widget.mode == StockActionMode.view) {
       _showItemDetails(item);
       return;
@@ -113,24 +90,35 @@ class _StockActionDialogState extends State<StockActionDialog> {
     if (qty == null || qty <= 0) return;
 
     if (widget.mode == StockActionMode.add) {
-      if (_selectedExpiry == null) return;
-
-      await inventory.addStock(
+      await _inventory.addStock(
         itemId: item.id,
         quantity: qty,
-        expiry: _selectedExpiry!,
+        expiry: DateTime.now().add(const Duration(days: 365)),
       );
     }
 
     if (widget.mode == StockActionMode.dispense) {
-      await inventory.dispenseStock(
+      await _inventory.dispenseStock(
         itemId: item.id,
         quantity: qty,
       );
     }
 
-    context.read<InventoryProvider>().fetchItems(refresh: true);
-    Navigator.pop(context);
+    context.read<OfflineInventoryProvider>().reload();
+    Navigator.of(context).pop();
+  }
+
+  void _selectItem(ItemModel item) {
+    _selectedItem = item;
+
+    if (widget.mode != StockActionMode.view &&
+        _qtyCtrl.text.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        FocusScope.of(context).requestFocus(_qtyFocus);
+      });
+    } else {
+      _confirmItem(item);
+    }
   }
 
   void _showItemDetails(ItemModel item) {
@@ -143,37 +131,12 @@ class _StockActionDialogState extends State<StockActionDialog> {
     );
   }
 
-  void _onScanTextChanged(String value) {
-    if (value.trim().isEmpty) {
-      setState(() {
-        _filteredItems.clear();
-      });
-      return;
-    }
-
-    _handleScanOrSearch(value);
-  }
-
-  void _selectItem(ItemModel item) {
-    _selectedItem = item;
-
-    if (widget.mode != StockActionMode.view && _qtyCtrl.text.isEmpty) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        FocusScope.of(context).requestFocus(_qtyFocus);
-      });
-    } else {
-      _confirmItem(item);
-    }
-  }
-
   @override
   void dispose() {
     _scanCtrl.dispose();
     _qtyCtrl.dispose();
-    _expiryCtrl.dispose();
     _scanFocus.dispose();
     _qtyFocus.dispose();
-    _expiryFocus.dispose();
     super.dispose();
   }
 
@@ -189,7 +152,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 40),
+                const SizedBox(width: 24),
                 Text(
                   _title,
                   style: const TextStyle(
@@ -207,20 +170,23 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
             const SizedBox(height: 16),
 
-            // ================= SCAN =================
+            // ================= SCAN INPUT =================
             RawKeyboardListener(
               focusNode: FocusNode(),
               onKey: (event) {
                 if (event is RawKeyDownEvent &&
-                    (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                    (event.logicalKey ==
+                        LogicalKeyboardKey.enter ||
+                        event.logicalKey ==
+                            LogicalKeyboardKey.numpadEnter)) {
                   final value = _scanCtrl.text.trim();
                   if (value.isEmpty) return;
 
-                  final matches = _handleScanOrSearch(value);
+                  final matches =
+                  _handleScanOrSearch(value);
 
-                  if (matches.isNotEmpty) {
-                    _selectItem(matches[_selectedIndex]);
+                  if (matches.length == 1) {
+                    _selectItem(matches.first);
                   }
 
                   _scanCtrl.clear();
@@ -232,48 +198,12 @@ class _StockActionDialogState extends State<StockActionDialog> {
                 autofocus: true,
                 enableSuggestions: false,
                 autocorrect: false,
-
-                // ✅ AUTO SEARCH WHILE TYPING
-                onChanged: _onScanTextChanged,
-
                 decoration: const InputDecoration(
                   labelText: "Scan QR or search item",
                   prefixIcon: Icon(Icons.qr_code_scanner),
                 ),
               ),
-
             ),
-
-            // ================= EXPIRY =================
-            if (widget.mode == StockActionMode.add) ...[
-              const SizedBox(height: 12),
-
-              RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (event) {
-                  if (event is RawKeyDownEvent &&
-                      (event.logicalKey == LogicalKeyboardKey.enter ||
-                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-
-                    if (_selectedExpiry == null) {
-                      _pickExpiry(); // open picker
-                    } else {
-                      FocusScope.of(context).requestFocus(_qtyFocus); // go to qty
-                    }
-                  }
-                },
-                child: TextField(
-                  controller: _expiryCtrl,
-                  focusNode: _expiryFocus,
-                  readOnly: true,
-                  onTap: _pickExpiry,
-                  decoration: const InputDecoration(
-                    labelText: "Expiry Date",
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
-                ),
-              ),
-            ],
 
             const SizedBox(height: 12),
 
@@ -283,9 +213,12 @@ class _StockActionDialogState extends State<StockActionDialog> {
                 focusNode: FocusNode(),
                 onKey: (event) {
                   if (event is RawKeyDownEvent &&
-                      (event.logicalKey == LogicalKeyboardKey.enter ||
-                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                      (event.logicalKey ==
+                          LogicalKeyboardKey.enter ||
+                          event.logicalKey ==
+                              LogicalKeyboardKey.numpadEnter)) {
                     if (_selectedItem == null) return;
+
                     _confirmItem(_selectedItem!);
                   }
                 },
@@ -311,16 +244,44 @@ class _StockActionDialogState extends State<StockActionDialog> {
                   style: TextStyle(color: Colors.grey),
                 ),
               )
-                  : ListView.builder(
-                itemCount: _filteredItems.length,
-                itemBuilder: (_, index) {
-                  final item = _filteredItems[index];
-                  return ListTile(
-                    title: Text(item.name),
-                    subtitle: Text("Stock: ${item.totalStock}"),
-                    onTap: () => _selectItem(item),
-                  );
+                  : MouseRegion(
+                onExit: (_) {
+                  setState(() => _hoveredIndex = null);
                 },
+                child: ListView.builder(
+                  itemCount: _filteredItems.length,
+                  itemBuilder: (_, index) {
+                    final item = _filteredItems[index];
+
+                    final isHovered =
+                        _hoveredIndex == index;
+                    final isSelected =
+                        _hoveredIndex == null &&
+                            index == _selectedIndex;
+
+                    return MouseRegion(
+                      onEnter: (_) {
+                        setState(
+                                () => _hoveredIndex = index);
+                      },
+                      child: Container(
+                        color: isHovered
+                            ? Colors.green
+                            .withOpacity(0.25)
+                            : isSelected
+                            ? Colors.green
+                            .withOpacity(0.15)
+                            : null,
+                        child: ListTile(
+                          title: Text(item.name),
+                          subtitle: Text(
+                              "Stock: ${item.totalStock}"),
+                          onTap: () => _selectItem(item),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
 

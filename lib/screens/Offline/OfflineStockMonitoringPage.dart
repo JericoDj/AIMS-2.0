@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,8 +10,21 @@ import '../admin/dialogs/OfflineItemDialog.dart';
 import '../admin/widgets/ReusableButton.dart';
 
 
-class OfflineStockMonitoringPage extends StatelessWidget {
+class OfflineStockMonitoringPage extends StatefulWidget {
   const OfflineStockMonitoringPage({super.key});
+
+  @override
+  State<OfflineStockMonitoringPage> createState() => _OfflineStockMonitoringPageState();
+}
+
+class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<OfflineInventoryProvider>().loadItems();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -157,9 +172,6 @@ class OfflineStockMonitoringPage extends StatelessWidget {
     );
   }
 
-
-
-
   Widget _tableHeader() {
     return Container(
       height: 55,
@@ -272,7 +284,7 @@ class OfflineStockRow extends StatelessWidget {
 
           Expanded(
             flex: 3,
-            child: const Icon(Icons.qr_code, color: Colors.grey),
+            child: _QrCell(item: item),
           ),
 
           Expanded(
@@ -320,6 +332,53 @@ class _StatusBadge extends StatelessWidget {
           color: color,
           fontWeight: FontWeight.bold,
         ),
+      ),
+    );
+  }
+}
+
+
+
+class _QrCell extends StatelessWidget {
+  final ItemModel item;
+
+  const _QrCell({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final qr = item.barcodeImageUrl;
+
+    if (qr == null || qr.isEmpty) {
+      return const Icon(Icons.qr_code, color: Colors.grey);
+    }
+
+    final image = qr.startsWith('/')
+        ? Image.file(
+      File(qr),
+      fit: BoxFit.contain,
+    )
+        : Image.network(
+      qr,
+      fit: BoxFit.contain,
+      errorBuilder: (_, __, ___) =>
+      const Icon(Icons.broken_image, color: Colors.red),
+    );
+
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: image,
+            ),
+          ),
+        );
+      },
+      child: SizedBox(
+        height: 70,
+        child: image,
       ),
     );
   }

@@ -9,6 +9,7 @@ import '../../providers/sync_provider.dart';
 import '../Offline/OfflineInventoryPage.dart';
 import '../Offline/OfflineStockMonitoringPage.dart';
 import '../Offline/OfflineTransactionsPage.dart';
+import '../Offline/dialogs/uploadToOnlineDialog.dart';
 import 'DashboardPage.dart';
 import 'InventoryPage.dart';
 import 'ManageAccountPage.dart';
@@ -319,14 +320,26 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: your upload logic here
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Uploading offline data to online..."),
-                    ),
-                  );
-                },
+                  onPressed: () async {
+
+                    final box = GetStorage();
+                    final data = box.read('current_user');
+
+                    if (data == null || data is! Map) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("No offline user found. Please login online first."),
+                        ),
+                      );
+                      return;
+                    }
+
+                    showDialog(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (_) => const UploadToOnlineDialog(),
+                    );
+                  },
                 icon: const Icon(Icons.cloud_upload, color: Colors.white),
                 label: const Text(
                   "Upload to Online",

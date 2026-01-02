@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/enums/transaction_source_enum.dart';
 
-
 enum TransactionType {
   addStock,
   dispense,
@@ -46,15 +45,13 @@ class InventoryTransaction {
     return InventoryTransaction(
       id: doc.id,
       type: TransactionType.values.firstWhere(
-            (e) => e.name.toUpperCase() == data['type'],
+            (e) => e.name == (data['type'] as String).toLowerCase(),
         orElse: () => TransactionType.addStock,
       ),
       itemId: data['itemId'],
       itemName: data['itemName'],
       quantity: data['quantity'],
-      expiry: data['expiry'] != null
-          ? DateTime.parse(data['expiry'])
-          : null,
+      expiry: _parseExpiry(data['expiry']),
       userId: data['userId'],
       userName: data['userName'],
       userRole: data['userRole'],
@@ -63,41 +60,57 @@ class InventoryTransaction {
     );
   }
 
-  // ================= OFFLINE =================
-  factory InventoryTransaction.fromMap(Map<String, dynamic> map) {
+  // ================= OFFLINE / JSON =================
+  factory InventoryTransaction.fromJson(Map<String, dynamic> json) {
     return InventoryTransaction(
-      id: map['id'],
+      id: json['id'],
       type: TransactionType.values.firstWhere(
-            (e) => e.name == map['type'],
+            (e) => e.name == json['type'],
         orElse: () => TransactionType.addStock,
       ),
-      itemId: map['itemId'],
-      itemName: map['itemName'],
-      quantity: map['quantity'],
-      expiry:
-      map['expiry'] != null ? DateTime.parse(map['expiry']) : null,
-      userId: map['userId'],
-      userName: map['userName'],
-      userRole: map['userRole'],
-      source: TransactionSourceX.fromString(map['source']),
-      timestamp: DateTime.parse(map['timestamp']),
+      itemId: json['itemId'],
+      itemName: json['itemName'],
+      quantity: json['quantity'],
+      expiry: json['expiry'] != null
+          ? DateTime.parse(json['expiry'])
+          : null,
+      userId: json['userId'],
+      userName: json['userName'],
+      userRole: json['userRole'],
+      source: TransactionSourceX.fromString(json['source']),
+      timestamp: DateTime.parse(json['timestamp']),
     );
   }
 
   // ================= SERIALIZE =================
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'type': type.name,
+    'itemId': itemId,
+    'itemName': itemName,
+    'quantity': quantity,
+    'expiry': expiry?.toIso8601String(),
+    'userId': userId,
+    'userName': userName,
+    'userRole': userRole,
+    'source': source.value,
+    'timestamp': timestamp.toIso8601String(),
+  };
+
+  // ================= HELPERS =================
+  static DateTime? _parseExpiry(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is String) return DateTime.parse(value);
+    throw Exception('Invalid expiry format: $value');
+  }
+
+  // ================= BACKWARD COMPAT =================
+  factory InventoryTransaction.fromMap(Map<String, dynamic> map) {
+    return InventoryTransaction.fromJson(map);
+  }
+
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'type': type.name,
-      'itemId': itemId,
-      'itemName': itemName,
-      'quantity': quantity,
-      'expiry': expiry?.toIso8601String(),
-      'userId': userId,
-      'userName': userName,
-      'userRole': userRole,
-      'source': source.value,
-      'timestamp': timestamp.toIso8601String(),
-    };
+    return toJson();
   }
 }

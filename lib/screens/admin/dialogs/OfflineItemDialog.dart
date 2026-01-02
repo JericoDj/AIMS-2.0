@@ -79,7 +79,7 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
       );
 
       // 🔄 REFRESH PROVIDER FROM CONTROLLER STATE
-      context.read<OfflineInventoryProvider>().reload();
+      await context.read<OfflineInventoryProvider>().reload();
 
       return true;
     } catch (e) {

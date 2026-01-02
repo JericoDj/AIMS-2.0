@@ -78,4 +78,26 @@ class InventoryProvider extends ChangeNotifier {
       );
     }).toList();
   }
+
+  Future<void> updateLowStockThreshold({
+    required String itemId,
+    required int value,
+  }) async {
+    await _firestore.collection('items').doc(itemId).update({
+      'lowStockThreshold': value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final index = _items.indexWhere((i) => i.id == itemId);
+    if (index != -1) {
+      _items[index] = _items[index].copyWith(
+        lowStockThreshold: value,
+      );
+      notifyListeners();
+    }
+  }
+
+
+
+
 }

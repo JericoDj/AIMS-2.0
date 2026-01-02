@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 
 
 import '../models/BarcodePngResult.dart';
+import '../models/SyncRequestModel.dart';
 import '../models/TransactionModel.dart';
 import 'barCodeController.dart';
 import 'barCodeDecoderController.dart';
@@ -279,6 +280,65 @@ class InventoryController {
 
     debugPrint('🔴 [dispenseStock] END');
   }
+
+  Future<String?> findItemIdByName(String name) async {
+    final key = normalizeItemName(name);
+
+    final snap = await _firestore
+        .collection('items')
+        .where('name_key', isEqualTo: key)
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return null;
+    return snap.docs.first.id;
+  }
+
+
+  Future<String> syncEnsureItem({
+    required String name,
+    required String category,
+  }) async {
+    final existingId = await findItemIdByName(name);
+    if (existingId != null) return existingId;
+
+    // Create item ONLY if missing
+    return await createItem(
+      name: name,
+      category: category,
+    );
+  }
+
+  Future<void> applyOfflineTransaction({
+    required InventoryTransaction tx,
+  }) async {
+    switch (tx.type) {
+      case TransactionType.addStock:
+        await addStock(
+          itemId: tx.itemId,
+          quantity: tx.quantity!,
+          expiry: tx.expiry!,
+        );
+        break;
+
+      case TransactionType.dispense:
+        await dispenseStock(
+          itemId: tx.itemId,
+          quantity: tx.quantity!,
+        );
+        break;
+
+      case TransactionType.createItem:
+      case TransactionType.deleteItem:
+      // ❌ IGNORE — handled separately
+        break;
+    }
+  }
+
+
+
+
+
 
 
 

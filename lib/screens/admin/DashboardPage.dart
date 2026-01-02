@@ -83,7 +83,7 @@ class DashboardPage extends StatelessWidget {
               // ---------------- TOP SUMMARY CARDS ----------------
               LayoutBuilder(
                 builder: (context, constraints) {
-                  double cardWidth = constraints.maxWidth / 4 - 20;
+                  double cardWidth = constraints.maxWidth / 3 - 20;
                   double cardHeight = screen.height * 0.2;
 
                   return Container(
@@ -91,14 +91,7 @@ class DashboardPage extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        DashboardStatCard(
-                          title: "Total Items",
-                          value: "245",
-                          icon: Icons.inventory_2,
-                          iconColor: Colors.green[800],
-                          width: cardWidth,
-                          height: cardHeight,
-                        ),
+
                         DashboardStatCard(
                           title: "Low Stock",
                           value: "18",

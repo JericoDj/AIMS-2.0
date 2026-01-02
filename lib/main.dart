@@ -3,6 +3,7 @@ import 'package:aims2frontend/providers/items_provider.dart';
 import 'package:aims2frontend/providers/offline_inventory_provider.dart';
 import 'package:aims2frontend/providers/offline_transaction_provider.dart';
 import 'package:aims2frontend/providers/sync_provider.dart';
+import 'package:aims2frontend/providers/sync_request_provider.dart';
 import 'package:aims2frontend/providers/transactions_provider.dart';
 import 'package:aims2frontend/screens/router.dart';
 import 'package:firebase_core/firebase_core.dart' show Firebase;
@@ -44,12 +45,16 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AccountsProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
+
         ChangeNotifierProvider(create: (_) => SyncProvider()),
-        ChangeNotifierProvider(
-          create: (_) => OfflineTransactionsProvider(),
+        ChangeNotifierProvider.value(
+          value: OfflineTransactionsProvider.instance,
         ),
         ChangeNotifierProvider(
           create: (_) => OfflineInventoryProvider(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => SyncRequestProvider(),
         ),
       ],
       child: Builder(
