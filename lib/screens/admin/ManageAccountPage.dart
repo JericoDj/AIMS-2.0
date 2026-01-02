@@ -78,9 +78,9 @@ class ManageAccountsPage extends StatelessWidget {
                             'assets/Avatar2.jpeg',
                         name: accounts[index].fullName,
                         role: accounts[index].role.name.toUpperCase(),
-                        onEdit: () {
-                          // TODO: Open edit dialog
-                        },
+                        // onEdit: () {
+                        //   // TODO: Open edit dialog
+                        // },
                         onRemove: () {
                           _confirmRemove(
                             context,
@@ -137,31 +137,69 @@ class ManageAccountsPage extends StatelessWidget {
       ) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Remove Account"),
-        content: Text(
-          "Are you sure you want to remove ${account.fullName}?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Cancel"),
+      builder: (_) {
+        final passwordCtrl = TextEditingController();
+
+        return AlertDialog(
+          title: const Text("Confirm Deletion"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "Remove ${account.fullName}?",
+              ),
+
+              if (account.role.name.toLowerCase() == "admin") ...[
+                const SizedBox(height: 12),
+                const Text(
+                  "Admin account requires password confirmation",
+                  style: TextStyle(color: Colors.red),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: passwordCtrl,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: "Your password",
+                  ),
+                ),
+              ],
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              provider.removeAccount(account.id);
-              Navigator.pop(context);
-            },
-            child: const Text(
-              "Remove",
-              style: TextStyle(color: Colors.red),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
             ),
-          ),
-        ],
-      ),
+            TextButton(
+              onPressed: () async {
+                try {
+                  if (account.role.name.toLowerCase() == "admin") {
+                    await provider.reauthenticateAdmin(passwordCtrl.text);
+                  }
+
+                  await provider.removeAccount(account.id);
+
+                  Navigator.pop(context);
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text(e.toString())),
+                  );
+                }
+              },
+              child: const Text(
+                "Remove",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
+
+
 
 
 //
@@ -171,17 +209,14 @@ class _UserRow extends StatelessWidget {
   final String image;
   final String name;
   final String role;
-  final VoidCallback onEdit;
-  final VoidCallback onRemove;
+  final VoidCallback? onRemove;
 
   const _UserRow({
     required this.image,
     required this.name,
     required this.role,
-    required this.onEdit,
-    required this.onRemove,
+    this.onRemove,
   });
-
 
   @override
   Widget build(BuildContext context) {
@@ -190,15 +225,9 @@ class _UserRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          // USER AVATAR
-          CircleAvatar(
-            radius: 26,
-            backgroundImage: AssetImage(image),
-          ),
-
+          CircleAvatar(radius: 26, backgroundImage: AssetImage(image)),
           const SizedBox(width: 20),
 
-          // NAME
           Expanded(
             child: Text(
               name,
@@ -210,7 +239,6 @@ class _UserRow extends StatelessWidget {
             ),
           ),
 
-          // ROLE
           Text(
             role,
             style: TextStyle(
@@ -221,35 +249,21 @@ class _UserRow extends StatelessWidget {
 
           const SizedBox(width: 40),
 
-          // EDIT
-          GestureDetector(
-            onTap: onEdit,
-            child: Text(
-              "Edit",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.green[900],
+          if (onRemove != null)
+            GestureDetector(
+              onTap: onRemove,
+              child: Text(
+                "Remove",
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[700],
+                ),
               ),
             ),
-          ),
-
-          const SizedBox(width: 25),
-
-          // REMOVE
-          GestureDetector(
-            onTap: onRemove,
-            child: Text(
-              "Remove",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.green[900],
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 }
+

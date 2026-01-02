@@ -7,6 +7,7 @@ import '../models/AccountModel.dart';
 import '../utils/enums/role_enum.dart';
 
 class AccountsProvider extends ChangeNotifier {
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final GetStorage _box = GetStorage();
@@ -29,6 +30,8 @@ class AccountsProvider extends ChangeNotifier {
     _loadCurrentUser();
     fetchUsersFromFirestore();
   }
+
+
 
 
   void setCurrentUser(Account account) {
@@ -55,6 +58,23 @@ class AccountsProvider extends ChangeNotifier {
   void _clearCurrentUser() {
     _box.remove(_currentUserKey);
   }
+
+
+  Future<void> reauthenticateAdmin(String password) async {
+    final user = _auth.currentUser;
+
+    if (user == null || user.email == null) {
+      throw Exception("No authenticated admin");
+    }
+
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: password,
+    );
+
+    await user.reauthenticateWithCredential(credential);
+  }
+
 
   // ================= FIRESTORE USERS =================
   Future<void> fetchUsersFromFirestore() async {
@@ -160,17 +180,44 @@ class AccountsProvider extends ChangeNotifier {
   }
 
   // ================= REMOVE ACCOUNT =================
-  Future<void> removeAccount(String id) async {
+  Future<void> removeAccount(
+      String id, {
+        String? adminPassword, // only required when deleting admin
+      }) async {
+    final target =
+    _accounts.firstWhere((a) => a.id == id, orElse: () => throw Exception("Account not found"));
+
+    // ❌ Cannot delete yourself
+    if (_currentUser?.id == id) {
+      throw Exception("You cannot remove your own account");
+    }
+
+    // ❌ Prevent deleting last admin
+    final adminCount =
+        _accounts.where((a) => a.role == UserRole.admin).length;
+
+    if (target.role == UserRole.admin && adminCount <= 1) {
+      throw Exception("Cannot remove the last admin account");
+    }
+
+    // 🔐 Require reauthentication when deleting admin
+    if (target.role == UserRole.admin) {
+      if (adminPassword == null || adminPassword.isEmpty) {
+        throw Exception("Admin password is required");
+      }
+
+      await reauthenticateAdmin(adminPassword);
+    }
+
+    // 🗑️ Delete Firestore user record
     await _firestore.collection('users').doc(id).delete();
 
+    // 🧹 Remove locally
     _accounts.removeWhere((a) => a.id == id);
-
-    if (_currentUser?.id == id) {
-      logout();
-    }
 
     notifyListeners();
   }
+
 
   // ================= ADMIN SHORTCUT (DEV ONLY) =================
   void loginAsAdmin() {
