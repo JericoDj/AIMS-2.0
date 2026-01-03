@@ -30,9 +30,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
       await inventory.fetchItems(refresh: true);
       await transactions.fetchTransactions(refresh: true);
-
-      // 🔔 Optional: trigger stock notification check here
-      await inventory.checkAndSendStockNotifications(context);
+      //
+      // // 🔔 Optional: trigger stock notification check here
+      // await inventory.checkAndSendStockNotifications(context);
     });
   }
 
