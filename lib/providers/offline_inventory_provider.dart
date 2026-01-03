@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../controllers/offlineInventoryController.dart';
 import '../models/ItemModel.dart';
+import '../utils/offline_inventory_storage.dart';
 
 class OfflineInventoryProvider extends ChangeNotifier {
   bool loading = false;
@@ -14,10 +15,10 @@ class OfflineInventoryProvider extends ChangeNotifier {
 
   bool _initialized = false;
 
-  // ================= LOAD / RELOAD =================
+  // ================= LOAD =================
   Future<void> loadItems() async {
     if (_initialized) {
-      // already loaded once, just refresh memory
+      // Refresh from controller memory only
       _items
         ..clear()
         ..addAll(_controller.getAll());
@@ -28,7 +29,7 @@ class OfflineInventoryProvider extends ChangeNotifier {
     loading = true;
     notifyListeners();
 
-    // 🔑 CRITICAL: load from disk → controller memory
+    // 🔑 Load disk → controller memory
     await _controller.init();
 
     _items
@@ -40,7 +41,7 @@ class OfflineInventoryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// 🔄 Explicit async reload
+  // ================= RELOAD (MEMORY ONLY) =================
   Future<void> reload() async {
     loading = true;
     notifyListeners();
@@ -67,8 +68,20 @@ class OfflineInventoryProvider extends ChangeNotifier {
     }
   }
 
-  void clear() {
+  // ================= CLEAR EVERYTHING =================
+  Future<void> clear() async {
+    // 1️⃣ Clear provider state
     _items.clear();
+
+    // 2️⃣ Clear controller memory
+    _controller.clear();
+
+    // 3️⃣ Clear disk storage
+    await OfflineInventoryStorage.clear();
+
+    // 4️⃣ Reset init flag so reload doesn't resurrect data
+    _initialized = false;
+
     notifyListeners();
   }
 }

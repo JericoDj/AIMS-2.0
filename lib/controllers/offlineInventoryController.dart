@@ -36,6 +36,10 @@ class OfflineInventoryController {
     debugPrint('✅ [OFFLINE] Loaded ${_items.length} items');
   }
 
+  void clear() {
+    _items.clear();
+  }
+
   // ================= CREATE ITEM =================
   Future<String> createItem({
     required String name,

@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/AccountModel.dart';
 import '../utils/enums/role_enum.dart';
@@ -180,12 +183,15 @@ class AccountsProvider extends ChangeNotifier {
   }
 
   // ================= REMOVE ACCOUNT =================
+
   Future<void> removeAccount(
       String id, {
-        String? adminPassword, // only required when deleting admin
+        String? adminPassword, // required only when deleting admin
       }) async {
-    final target =
-    _accounts.firstWhere((a) => a.id == id, orElse: () => throw Exception("Account not found"));
+    final target = _accounts.firstWhere(
+          (a) => a.id == id,
+      orElse: () => throw Exception("Account not found"),
+    );
 
     // ❌ Cannot delete yourself
     if (_currentUser?.id == id) {
@@ -209,14 +215,46 @@ class AccountsProvider extends ChangeNotifier {
       await reauthenticateAdmin(adminPassword);
     }
 
-    // 🗑️ Delete Firestore user record
-    await _firestore.collection('users').doc(id).delete();
+    // ================================
+    // 🔐 GET FIREBASE ID TOKEN
+    // ================================
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception("Not authenticated");
+    }
 
-    // 🧹 Remove locally
+    final idToken = await user.getIdToken();
+
+    // ================================
+    // 🔥 DELETE USER (AUTH + FIRESTORE)
+    // ================================
+    final response = await http.post(
+      Uri.parse(
+        "https://deleteuseraccount-tekpv2phba-uc.a.run.app",
+      ),
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer $idToken",
+      },
+      body: jsonEncode({
+        "uid": id,
+      }),
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        "Failed to delete user: ${response.body}",
+      );
+    }
+
+    // ================================
+    // 🧹 UPDATE LOCAL STATE
+    // ================================
     _accounts.removeWhere((a) => a.id == id);
 
     notifyListeners();
   }
+
 
 
   // ================= ADMIN SHORTCUT (DEV ONLY) =================

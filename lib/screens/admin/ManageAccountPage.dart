@@ -178,7 +178,9 @@ class ManageAccountsPage extends StatelessWidget {
                     await provider.reauthenticateAdmin(passwordCtrl.text);
                   }
 
-                  await provider.removeAccount(account.id);
+                  await provider.removeAccount(account.id,
+                    adminPassword: passwordCtrl.text,
+                  );
 
                   Navigator.pop(context);
                 } catch (e) {

@@ -65,7 +65,7 @@ class ItemModel {
 
   factory ItemModel.fromJson(Map<String, dynamic> json) {
     return ItemModel(
-      id: json['id'],
+      id: json['id'] ?? '',
       name: json['name'],
       category: json['category'],
       barcode: json['barcode'],
@@ -73,13 +73,21 @@ class ItemModel {
       nameNormalized: json['nameNormalized'],
       lowStockThreshold: json['lowStockThreshold'] ?? 10,
       lowStockNotified: json['lowStockNotified'] ?? false,
+
+
       batches: (json['batches'] as List? ?? [])
           .map(
             (e) => StockBatch.fromJson(
           Map<String, dynamic>.from(e),
         ),
+
+
       )
+
+
           .toList(),
+
+
     );
   }
 

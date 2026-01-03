@@ -35,33 +35,25 @@ class _UploadToOnlineDialogState extends State<UploadToOnlineDialog> {
       final String userId = user['id'];
 
       // ================= READ PROVIDERS =================
-      final inventoryProvider =
-      context.read<OfflineInventoryProvider>();
+      final inventoryProvider = context.read<OfflineInventoryProvider>();
+      final transactionProvider = OfflineTransactionsProvider.instance;
 
-      final transactionProvider =
-          OfflineTransactionsProvider.instance;
-
-      final inventory = inventoryProvider.items
-          .map((e) => e.toJson())
-          .toList();
-
-      final transactions = transactionProvider.transactions
-          .map((e) => e.toJson()) // ✅ FIX HERE
-          .toList();
+      final inventory = inventoryProvider.items.map((e) => e.toJson()).toList();
+      final transactions =
+      transactionProvider.transactions.map((e) => e.toJson()).toList();
 
       if (inventory.isEmpty && transactions.isEmpty) {
         throw Exception('No offline data to upload.');
       }
 
-      // ================= FIRESTORE PATH =================
+      // ================= FIRESTORE =================
       final now = DateTime.now();
       final dateKey = DateFormat('yyyy-MM-dd_HH-mm-ss').format(now);
 
-      final ref = FirebaseFirestore.instance
+      await FirebaseFirestore.instance
           .collection('syncRequests')
-          .doc(dateKey);
-
-      await ref.set({
+          .doc(dateKey)
+          .set({
         'requestId': dateKey,
         'userId': userId,
         'userName': user['fullName'],
@@ -71,6 +63,13 @@ class _UploadToOnlineDialogState extends State<UploadToOnlineDialog> {
         'inventory': inventory,
         'transactions': transactions,
       });
+
+      // ================= CLEAR OFFLINE DATA =================
+      inventoryProvider.clear();
+      transactionProvider.clear();
+
+      // Optional: block further edits until approved
+      box.write('sync_pending', true);
 
       if (!mounted) return;
 
@@ -91,6 +90,7 @@ class _UploadToOnlineDialogState extends State<UploadToOnlineDialog> {
       if (mounted) setState(() => _loading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
