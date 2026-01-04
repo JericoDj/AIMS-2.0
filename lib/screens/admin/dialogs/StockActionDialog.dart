@@ -153,7 +153,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
       await inventoryProvider.fetchItems(refresh: true);
 
       // 🔔 LOW-STOCK / OUT-OF-STOCK CHECK
-      await inventoryProvider.checkAndSendStockNotifications(context);
+      await inventoryProvider.checkAndSendStockNotifications(notifProvider);
     }
 
     // 🔄 Refresh after add (optional but safe)

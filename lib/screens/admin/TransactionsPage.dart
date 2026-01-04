@@ -18,8 +18,12 @@ import 'package:pdf/pdf.dart';
 
   class TransactionsPage extends StatefulWidget {
 
+    final String? initialSearch;
 
-    const TransactionsPage({super.key});
+
+    const TransactionsPage({
+      this.initialSearch,
+      super.key});
 
     @override
     State<TransactionsPage> createState() => _TransactionsPageState();
@@ -33,6 +37,12 @@ import 'package:pdf/pdf.dart';
     @override
     void initState() {
       super.initState();
+
+      if (widget.initialSearch != null &&
+          widget.initialSearch!.isNotEmpty) {
+        _searchQuery = widget.initialSearch!.toLowerCase();
+      }
+
       Future.microtask(() {
         context.read<TransactionsProvider>().fetchTransactions(refresh: true);
       });

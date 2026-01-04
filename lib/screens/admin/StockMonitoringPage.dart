@@ -16,18 +16,33 @@ import 'dialogs/ItemDetailsDialog.dart';
 import 'widgets/ReusableButton.dart';
 
 class StockMonitoringPage extends StatefulWidget {
-  const StockMonitoringPage({super.key});
+  final String? initialSearch;
+  const StockMonitoringPage({
+    this.initialSearch,
+    super.key});
+
+
 
   @override
   State<StockMonitoringPage> createState() => _StockMonitoringPageState();
 }
 
 class _StockMonitoringPageState extends State<StockMonitoringPage> {
+
+
+
   StockFilter _filter = StockFilter.all;
   String _searchQuery = '';
   @override
   void initState() {
+    print("Initial search: ${widget.initialSearch}");
     super.initState();
+
+    // ✅ ACCEPT SEARCH VALUE
+    if (widget.initialSearch != null &&
+        widget.initialSearch!.isNotEmpty) {
+      _searchQuery = widget.initialSearch!.toLowerCase();
+    }
 
     // Fetch inventory once when page opens
     Future.microtask(() {

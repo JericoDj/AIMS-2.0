@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import '../models/ItemModel.dart';
@@ -94,18 +97,27 @@ class InventoryProvider extends ChangeNotifier {
   }
 
 
+
   Future<void> checkAndSendStockNotifications(
-      BuildContext context,
+      NotificationProvider notifProvider,
       ) async {
-    final notifProvider = context.read<NotificationProvider>();
+
+    print("checked and sending stock notifications");
+    print("total items: ${_items.length}");
+    print(_items.map((e) => e.name).toList());
+    const adminEmail = 'dejesusjerico528@gmail.com';
+    const emailEndpoint =
+        'https://sendinventoryalert-tekpv2phba-uc.a.run.app';
 
     for (final item in _items) {
-      // 🔔 LOW STOCK DETECTED (ONCE)
+      // 🔔 LOW STOCK — SEND ONCE
       if (item.isLowStock && !item.lowStockNotified) {
+        // 1️⃣ Mark as notified FIRST
         await _firestore.collection('items').doc(item.id).update({
           'lowStockNotified': true,
         });
 
+        // 2️⃣ In-app notification
         await notifProvider.createNotification(
           itemId: item.id,
           itemName: item.name,
@@ -113,6 +125,27 @@ class InventoryProvider extends ChangeNotifier {
           message:
           '${item.name} is low on stock (${item.totalStock} remaining)',
         );
+
+        // 3️⃣ Email to admin
+        try {
+          final res = await http.post(
+            Uri.parse(emailEndpoint),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'to': adminEmail,
+              'type': 'LOW_STOCK',
+              'itemName': item.name,
+              'message':
+              '${item.name} is low on stock (${item.totalStock} remaining)',
+            }),
+          );
+
+          if (res.statusCode != 200) {
+            debugPrint('❌ Email API failed: ${res.body}');
+          }
+        } catch (e) {
+          debugPrint('❌ Email request error: $e');
+        }
       }
 
       // 🔄 RESET FLAG WHEN STOCK RECOVERS
@@ -123,6 +156,8 @@ class InventoryProvider extends ChangeNotifier {
       }
     }
   }
+
+
 
 
   Future<void> updateLowStockThreshold({

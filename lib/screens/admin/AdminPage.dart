@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 // IMPORT ALL SUBPAGES
+import '../../models/AppNotification.dart';
 import '../../providers/accounts_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/sync_provider.dart';
@@ -42,6 +43,8 @@ class _AdminPageState extends State<AdminPage> {
   static const String _currentUserKey = 'current_user';
   int selectedIndex = 0;
   bool isOfflineMode = false;
+
+  String? pendingSearchValue;
 
 
   int notificationCount = 4; // example for now
@@ -151,11 +154,13 @@ class _AdminPageState extends State<AdminPage> {
                                 _formatTime(n.createdAt),
                                 style: const TextStyle(fontSize: 11),
                               ),
-                              onTap: () {
-                                context
-                                    .read<NotificationProvider>()
-                                    .markAsRead(n.id);
-                              },
+                                onTap: () {
+                                  context.read<NotificationProvider>().markAsRead(n.id);
+
+                                  Navigator.pop(context); // close dialog
+
+                                  _handleNotificationNavigation(n);
+                                },
                             ),
                             const Divider(height: 5),
                           ],
@@ -170,6 +175,30 @@ class _AdminPageState extends State<AdminPage> {
       },
     );
   }
+
+  void _handleNotificationNavigation(AppNotification n) {
+    final type = n.type;
+    final itemName = n.itemName;
+
+    setState(() {
+      pendingSearchValue = itemName;
+
+      // INVENTORY-RELATED
+      if (type == 'LOW_STOCK' ||
+          type == 'NEAR_EXPIRY' ||
+          type == 'OUT_OF_STOCK') {
+        isOfflineMode = false;
+        selectedIndex = 2; // Inventory Management
+      }
+
+      // TRANSACTION-RELATED
+      else if (type == 'DISPENSE' || type == 'STOCK_ADDED') {
+        isOfflineMode = false;
+        selectedIndex = 3; // Transactions
+      }
+    });
+  }
+
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();
@@ -563,9 +592,13 @@ class _AdminPageState extends State<AdminPage> {
         case 1:
           return const InventoryPage();
         case 2:
-          return const StockMonitoringPage();
+          return StockMonitoringPage(
+            initialSearch: pendingSearchValue,
+          );
         case 3:
-          return const TransactionsPage();
+          return TransactionsPage(
+            initialSearch: pendingSearchValue,
+          );
         case 4:
           return const ManageAccountsPage();
         case 5:

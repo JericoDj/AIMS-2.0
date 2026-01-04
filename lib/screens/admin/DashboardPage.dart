@@ -1,3 +1,4 @@
+import 'package:aims2frontend/providers/notification_provider.dart';
 import 'package:aims2frontend/screens/admin/widgets/topDispensedBarCharts.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -30,9 +31,9 @@ class _DashboardPageState extends State<DashboardPage> {
 
       await inventory.fetchItems(refresh: true);
       await transactions.fetchTransactions(refresh: true);
-      //
-      // // 🔔 Optional: trigger stock notification check here
-      // await inventory.checkAndSendStockNotifications(context);
+      // done via mailer send free tier
+      // 🔔 Optional: trigger stock notification check here
+      await inventory.checkAndSendStockNotifications(NotificationProvider());
     });
   }
 
