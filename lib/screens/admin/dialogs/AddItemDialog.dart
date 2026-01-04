@@ -125,12 +125,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 "Add New Item",
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Colors.green[700],
                 ),
               ),
 
@@ -210,12 +210,22 @@ class _AddItemDialogState extends State<AddItemDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: _loading
-                        ? null
-                        : () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
-                    child: const Text("Cancel"),
+                  Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.red),
+                    ),
+
+                    child: TextButton(
+                      onPressed: _loading
+                          ? null
+                          : () =>
+                          Navigator.of(context, rootNavigator: true).pop(),
+                      child: const Text(
+                          style: TextStyle(
+                              color: Colors.red),
+                          "Cancel"),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton(
@@ -240,7 +250,10 @@ class _AddItemDialogState extends State<AddItemDialog> {
                       child:
                       CircularProgressIndicator(strokeWidth: 2),
                     )
-                        : const Text("Save"),
+                        : const Text(
+                        style: TextStyle(fontWeight: FontWeight.bold,
+                            color: Colors.white),
+                        "Save"),
                   ),
                 ],
               ),

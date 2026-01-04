@@ -31,6 +31,8 @@ import 'package:pdf/pdf.dart';
 
   class _TransactionsPageState extends State<TransactionsPage> {
 
+    late final TextEditingController _searchCtrl;
+
     String _searchQuery = '';
     TransactionType? _selectedType;
 
@@ -38,14 +40,34 @@ import 'package:pdf/pdf.dart';
     void initState() {
       super.initState();
 
-      if (widget.initialSearch != null &&
-          widget.initialSearch!.isNotEmpty) {
-        _searchQuery = widget.initialSearch!.toLowerCase();
-      }
+      _searchCtrl = TextEditingController(
+        text: widget.initialSearch?.toLowerCase() ?? '',
+      );
+
+      _searchQuery = _searchCtrl.text;
 
       Future.microtask(() {
         context.read<TransactionsProvider>().fetchTransactions(refresh: true);
       });
+    }
+
+    @override
+    void didUpdateWidget(covariant TransactionsPage oldWidget) {
+      super.didUpdateWidget(oldWidget);
+
+      if (widget.initialSearch != oldWidget.initialSearch &&
+          widget.initialSearch != null) {
+        setState(() {
+          _searchQuery = widget.initialSearch!.toLowerCase();
+          _searchCtrl.text = _searchQuery;
+        });
+      }
+    }
+
+    @override
+    void dispose() {
+      _searchCtrl.dispose();
+      super.dispose();
     }
 
     void showViewTransactionDialog(
@@ -354,8 +376,12 @@ import 'package:pdf/pdf.dart';
                 Expanded(
                   child: PdfPreview(
                     build: (_) async => pdfBytes,
+                    // 🔒 Disable everything
                     allowPrinting: false,
                     allowSharing: false,
+                    canChangeOrientation: false,
+                    canChangePageFormat: false,
+                    canDebug: false,
                   ),
                 ),
               ],
@@ -426,12 +452,12 @@ import 'package:pdf/pdf.dart';
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 "Transactions",
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Colors.green[700],
                 ),
               ),
               ReusableButton(
@@ -457,6 +483,7 @@ import 'package:pdf/pdf.dart';
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: TextField(
+                      controller: _searchCtrl,
                       onChanged: (value) {
                         setState(() {
                           _searchQuery = value.trim().toLowerCase();
@@ -468,6 +495,7 @@ import 'package:pdf/pdf.dart';
                         icon: Icon(Icons.search),
                       ),
                     ),
+
                   ),
                 ),
               ),
@@ -489,7 +517,10 @@ import 'package:pdf/pdf.dart';
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFD0E8B5),
+                border: Border.all(
+                  color: Colors.green,
+                ),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(25),
               ),
               child: Column(

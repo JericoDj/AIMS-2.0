@@ -7,9 +7,15 @@ import '../../controllers/dashboardAnalyticsController.dart';
 import '../../models/ItemUsage.dart';
 import '../../providers/items_provider.dart';
 import '../../providers/transactions_provider.dart';
+import '../../utils/enums/stock_filter_enum.dart';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  final void Function(StockFilter filter)? onStatTap;
+  final void Function(String itemName)? onChartItemTap;
+  const DashboardPage({
+    this.onStatTap,
+    this.onChartItemTap,
+    super.key});
 
   @override
   State<DashboardPage> createState() => _DashboardPageState();
@@ -59,12 +65,12 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 10),
 
               // ---------------- PAGE TITLE ----------------
-              const Text(
+              Text(
                 "Dashboard",
                 style: TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
-                  color: Colors.green,
+                  color: Colors.green[700],
                 ),
               ),
 
@@ -94,12 +100,12 @@ class _DashboardPageState extends State<DashboardPage> {
                         ),
                         child: Column(
                           children: [
-                            const Text(
+                             Text(
                               "Current Month Usage Overview",
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.green,
+                                color: Colors.green[600],
                               ),
                             ),
                             const SizedBox(height: 25),
@@ -119,7 +125,12 @@ class _DashboardPageState extends State<DashboardPage> {
                                     );
                                   }
 
-                                  return TopDispensedBarChart(data: data);
+                                  return TopDispensedBarChart(
+                                    data: data,
+                                    onItemTap: (item) {
+                                      widget.onChartItemTap?.call(item.itemName);
+                                    },
+                                  );
                                 },
                               ),
                             ),
@@ -152,33 +163,51 @@ class _DashboardPageState extends State<DashboardPage> {
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            DashboardStatCard(
-                              title: "Low Stock",
-                              value: lowStockCount.toString(),
-                              icon: Icons.warning_amber_rounded,
-                              iconColor: Colors.orange,
-                              width: cardWidth,
-                              height: cardHeight,
+                            // ================= LOW STOCK =================
+                            InkWell(
+                              borderRadius: BorderRadius.circular(25),
+                              onTap: () => widget.onStatTap?.call(StockFilter.low),
+                              child: DashboardStatCard(
+                                title: "Low Stock",
+                                value: lowStockCount.toString(),
+                                icon: Icons.warning_amber_rounded,
+                                iconColor: Colors.orange,
+                                width: cardWidth,
+                                height: cardHeight,
+                              ),
                             ),
-                            DashboardStatCard(
-                              title: "Out of Stock",
-                              value: outOfStockCount.toString(),
-                              icon: Icons.error_outline,
-                              iconColor: Colors.red,
-                              width: cardWidth,
-                              height: cardHeight,
+
+                            // ================= OUT OF STOCK =================
+                            InkWell(
+                              borderRadius: BorderRadius.circular(25),
+                              onTap: () => widget.onStatTap?.call(StockFilter.out),
+                              child: DashboardStatCard(
+                                title: "Out of Stock",
+                                value: outOfStockCount.toString(),
+                                icon: Icons.error_outline,
+                                iconColor: Colors.red,
+                                width: cardWidth,
+                                height: cardHeight,
+                              ),
                             ),
-                            DashboardStatCard(
-                              title: "Expiring Soon",
-                              value: expiringSoonCount.toString(),
-                              icon: Icons.timer_outlined,
-                              iconColor: Colors.orange,
-                              width: cardWidth,
-                              height: cardHeight,
+
+                            // ================= NEARLY EXPIRY =================
+                            InkWell(
+                              borderRadius: BorderRadius.circular(25),
+                              onTap: () => widget.onStatTap?.call(StockFilter.expiry),
+                              child: DashboardStatCard(
+                                title: "Expiring Soon",
+                                value: expiringSoonCount.toString(),
+                                icon: Icons.timer_outlined,
+                                iconColor: Colors.orange,
+                                width: cardWidth,
+                                height: cardHeight,
+                              ),
                             ),
                           ],
                         ),
                       );
+
                     },
                   );
                 },
@@ -226,22 +255,23 @@ class DashboardStatCard extends StatelessWidget {
       height: height,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+
         border: Border.all(
             width: 3,
             color: Colors.green[400]!),
-        color: const Color(0xFFFFFFFF),
+        color: Colors.green[50],
         borderRadius: BorderRadius.circular(25),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: height * 0.20, color: iconColor ?? Colors.green[800]),
+          Icon(icon, size: height * 0.18, color: iconColor ?? Colors.green[800]),
           const SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              fontSize: height * 0.15,
+              fontSize: height * 0.12,
               fontWeight: FontWeight.bold,
               color: Colors.green[900],
             ),
@@ -249,7 +279,7 @@ class DashboardStatCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              fontSize: height * 0.12,
+              fontSize: height * 0.10,
               color: Colors.green[900],
             ),
           ),

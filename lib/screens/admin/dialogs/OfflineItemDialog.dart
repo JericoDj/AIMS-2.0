@@ -40,7 +40,7 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
     if (name.isEmpty ||
         _category == null ||
         quantity == null ||
-        quantity <= 0 ||
+        quantity <= -1 ||
         _expiryDate == null) {
       messenger?.showSnackBar(
         const SnackBar(content: Text('Please complete all fields')),

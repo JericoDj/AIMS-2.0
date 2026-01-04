@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -150,7 +152,7 @@ class InventoryTransactionReportController {
   // ================= PREVIEW =================
   static void _showPreviewDialog(
       BuildContext context,
-      Uint8List bytes,
+      Uint8List pdfBytes,
       String fileName,
       ) {
     showDialog(
@@ -160,16 +162,74 @@ class InventoryTransactionReportController {
         child: SizedBox(
           width: 1000,
           height: 650,
-          child: PdfPreview(
-            build: (_) async => bytes,
-            allowPrinting: false,
-            allowSharing: true,
-            canChangeOrientation: false,
-            canChangePageFormat: false,
-            pdfFileName: fileName,
+          child: Column(
+            children: [
+              // ================= HEADER =================
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                color: Colors.grey.shade200,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Inventory Report Preview',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          icon: const Icon(Icons.download),
+                          label: const Text('Save'),
+                          onPressed: () async {
+                            final dir =
+                            await getApplicationDocumentsDirectory();
+                            final file = File('${dir.path}/$fileName');
+
+                            await file.writeAsBytes(pdfBytes);
+
+                            Navigator.pop(context);
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Saved to ${file.path}'),
+                              ),
+                            );
+                          },
+                        ),
+                        TextButton(
+                          child: const Text('Close'),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+
+              // ================= PDF PREVIEW =================
+              Expanded(
+                child: PdfPreview(
+                  build: (_) async => pdfBytes,
+
+                  // ❌ disable built-in controls
+                  allowPrinting: false,
+                  allowSharing: false,
+                  canChangeOrientation: false,
+                  canChangePageFormat: false,
+                  canDebug: false,
+
+                  // ❌ hide toolbar completely
+                  actions: const [],
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
+
 }

@@ -36,7 +36,11 @@ class LandingActions extends StatelessWidget {
         _ActionButton(
           label: "Offline Mode",
           color: Colors.red,
-          onTap: () => context.go('/admin-offline'),
+          onTap: () => {
+            print("Navigating to offline mode"),
+            context.go('/offline'),
+
+    }
         ),
       ],
     );

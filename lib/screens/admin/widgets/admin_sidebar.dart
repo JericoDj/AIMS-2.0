@@ -37,7 +37,7 @@ class AdminSidebar extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           Text(
-            state.isOfflineMode ? "(OFFLIE MODE)" : "Administrator",
+            state.isOfflineMode ? "(OFFLINE MODE)" : "Administrator",
             style: TextStyle(
               color: state.isOfflineMode ? Colors.red : Colors.black54,
               fontWeight: FontWeight.bold,

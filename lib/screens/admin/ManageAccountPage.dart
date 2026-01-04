@@ -54,7 +54,11 @@ class ManageAccountsPage extends StatelessWidget {
           Container(
             width: 700,
             decoration: BoxDecoration(
-              color: const Color(0xFFD0E8B5),
+              border: Border.all(
+                color: Colors.green[600]!,
+                width: 2,
+              ),
+              color: Colors.green[50],
               borderRadius: BorderRadius.circular(40),
             ),
             child: Column(
@@ -93,7 +97,7 @@ class ManageAccountsPage extends StatelessWidget {
                       if (index != accounts.length - 1)
                         Container(
                           height: 1,
-                          color: Colors.white.withOpacity(0.6),
+                          color: Colors.green[300],
                           margin:
                           const EdgeInsets.symmetric(horizontal: 20),
                         ),
@@ -101,22 +105,32 @@ class ManageAccountsPage extends StatelessWidget {
                   ),
 
                 // ------------------- CREATE ACCOUNT -------------------
-                GestureDetector(
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (_) => const CreateAccountDialog(),
-                    );
-                  },
-                  child: Container(
-                    height: 70,
-                    alignment: Alignment.center,
-                    child: Text(
-                      "+ Create Account",
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: Colors.green[900],
-                        fontWeight: FontWeight.bold,
+                Container(
+                  decoration: BoxDecoration(
+                    border: Border(
+                      top: BorderSide(
+                        color: Colors.green[300]!,
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  child: GestureDetector(
+                    onTap: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => const CreateAccountDialog(),
+                      );
+                    },
+                    child: Container(
+                      height: 70,
+                      alignment: Alignment.center,
+                      child: Text(
+                        "+ Create Account",
+                        style: TextStyle(
+                          fontSize: 22,
+                          color: Colors.green[900],
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),

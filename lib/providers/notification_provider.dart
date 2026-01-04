@@ -2,35 +2,58 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../models/AppNotification.dart';
-
 class NotificationProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final List<AppNotification> _notifications = [];
+
   bool _loading = false;
+  bool _hasMore = true;
+
+  DocumentSnapshot? _lastDoc;
+
+  static const int _pageSize = 5;
 
   // ---------------- GETTERS ----------------
   List<AppNotification> get notifications => _notifications;
   bool get loading => _loading;
+  bool get hasMore => _hasMore;
 
-  // ---------------- FETCH ----------------
-  Future<void> fetchNotifications() async {
+  // ---------------- INITIAL FETCH ----------------
+  Future<void> fetchNotifications({bool refresh = false}) async {
     if (_loading) return;
+
+    if (refresh) {
+      _notifications.clear();
+      _lastDoc = null;
+      _hasMore = true;
+      notifyListeners();
+    }
+
+    if (!_hasMore) return;
 
     _loading = true;
     notifyListeners();
 
-    final snap = await _firestore
+    Query query = _firestore
         .collection('notifications')
         .orderBy('createdAt', descending: true)
-        .limit(20)
-        .get();
+        .limit(_pageSize);
 
-    _notifications
-      ..clear()
-      ..addAll(
+    if (_lastDoc != null) {
+      query = query.startAfterDocument(_lastDoc!);
+    }
+
+    final snap = await query.get();
+
+    if (snap.docs.isEmpty) {
+      _hasMore = false;
+    } else {
+      _lastDoc = snap.docs.last;
+      _notifications.addAll(
         snap.docs.map((e) => AppNotification.fromFirestore(e)),
       );
+    }
 
     _loading = false;
     notifyListeners();
@@ -60,9 +83,7 @@ class NotificationProvider extends ChangeNotifier {
         .doc(notificationId)
         .update({'read': true});
 
-    final index =
-    _notifications.indexWhere((n) => n.id == notificationId);
-
+    final index = _notifications.indexWhere((n) => n.id == notificationId);
     if (index != -1) {
       _notifications[index] =
           _notifications[index].copyWith(read: true);

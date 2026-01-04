@@ -191,10 +191,17 @@ class InventoryButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ?? () {},
       child: Container(
+
         width: 210,
         height: 140,
         decoration: BoxDecoration(
-          color: const Color(0xFFD0E8B5), // Light green like sample
+
+
+          border: Border.all(
+            width: 3,
+            color: Colors.green[600]!,
+          ),
+          color: Colors.green[50], // Light green like sample
           borderRadius: BorderRadius.circular(25),
         ),
         child: Column(
@@ -203,13 +210,13 @@ class InventoryButton extends StatelessWidget {
             Icon(
               icon,
               size: 55,
-              color: Colors.green[900],
+              color: Colors.green[600],
             ),
             const SizedBox(height: 12),
             Text(
               label,
               style: TextStyle(
-                color: Colors.green[900],
+                color: Colors.green[700],
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),

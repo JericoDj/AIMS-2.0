@@ -23,7 +23,7 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    // final menuItems = state.menuItems;
+    final menuItems = state.menuItems;
 
     return Scaffold(
       backgroundColor: Colors.white,

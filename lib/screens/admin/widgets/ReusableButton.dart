@@ -21,7 +21,11 @@ class ReusableButton extends StatelessWidget {
         width: MediaQuery.sizeOf(context).width * 0.1,
         height: MediaQuery.sizeOf(context).width * 0.06,
         decoration: BoxDecoration(
-          color: const Color(0xFFD0E8B5), // light green
+          border: Border.all(
+            color: Colors.green[600]!,
+            width: 2,
+          ),
+          color: Colors.green[50], // light green
           borderRadius: BorderRadius.circular(10),
         ),
         child: Center(

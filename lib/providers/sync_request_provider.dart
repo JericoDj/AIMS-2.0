@@ -49,7 +49,9 @@ class SyncRequestProvider extends ChangeNotifier {
   }
 
   // ================= APPROVE =================
+  // ================= APPROVE =================
   Future<void> approve(SyncRequest request) async {
+    debugPrint('✅ Approve called for request id: ${request.id}');
     if (syncing) return;
 
     syncing = true;
@@ -58,9 +60,11 @@ class SyncRequestProvider extends ChangeNotifier {
     try {
       await _controller.applySync(request);
 
+      // ✅ REMOVE FROM LOCAL LIST AFTER SUCCESS
       _requests.removeWhere((r) => r.id == request.id);
-    } catch (e) {
+    } catch (e, s) {
       debugPrint('❌ approve failed: $e');
+      debugPrintStack(stackTrace: s);
       rethrow;
     } finally {
       syncing = false;

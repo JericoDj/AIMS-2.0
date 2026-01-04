@@ -3,17 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/accounts_provider.dart';
+import 'Offline/OfflineBasePage.dart';
 import 'admin/AdminLogin.dart';
 import 'admin/AdminPage.dart';
 
 import 'admin/SyncPage.dart';
 import 'auth/forgot_password_page.dart';
 import 'user/UserLoginPage.dart';
-import 'UserPage.dart';
+import 'user/UserPage.dart';
 GoRouter createRouter(AccountsProvider accountsProvider) {
   return GoRouter(
     initialLocation: '/',
-    refreshListenable: accountsProvider, // 🔑 reacts to login/logout
+    refreshListenable: accountsProvider,
     redirect: (context, state) {
       final isLoggedIn = accountsProvider.isLoggedIn;
       final isAdmin = accountsProvider.isAdmin;
@@ -21,11 +22,14 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
 
       final location = state.uri.toString();
 
+      // ================= OFFLINE (ALWAYS ALLOWED) =================
+      if (location == '/offline') {
+        return null;
+      }
+
       // ================= NOT LOGGED IN =================
       if (!isLoggedIn) {
-        // Allow landing & login pages
-        if (location == '/' ||
-            location.startsWith('/login')) {
+        if (location == '/' || location.startsWith('/login')) {
           return null;
         }
         return '/';
@@ -67,6 +71,12 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
         builder: (_, __) => const AdminPage(forceOffline: true),
       ),
 
+      // ---------------- OFFLINE ----------------
+      GoRoute(
+        path: '/offline',
+        builder: (_, __) => const OfflineModeBasePage(),
+      ),
+
       // ---------------- USER ----------------
       GoRoute(
         path: '/user',
@@ -83,6 +93,7 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
         builder: (_, __) => const UserLoginPage(),
       ),
 
+      // ---------------- SYNC ----------------
       GoRoute(
         path: '/admin/sync',
         builder: (_, __) => const SyncPage(),
@@ -90,4 +101,5 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
     ],
   );
 }
+
 

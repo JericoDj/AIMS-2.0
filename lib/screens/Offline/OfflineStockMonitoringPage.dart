@@ -355,7 +355,7 @@ class OfflineStockRow extends StatelessWidget {
         children: [
           _Cell(item.name, flex: 3),
           _Cell(item.category, flex: 2),
-          _Cell(item.totalStock.toString(), flex: 2),
+          _Cell(item.displayStock.toString(), flex: 2),
           _Cell(item.nearestExpiryFormatted, flex: 2),
 
           Expanded(
@@ -365,7 +365,7 @@ class OfflineStockRow extends StatelessWidget {
 
           Expanded(
             flex: 2,
-            child: _StatusBadge(qty: item.totalStock),
+            child:_StatusBadge(item: item),
           ),
         ],
       ),
@@ -374,19 +374,21 @@ class OfflineStockRow extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  final int qty;
+  final ItemModel item;
 
-  const _StatusBadge({required this.qty});
+  const _StatusBadge({required this.item});
 
   String _statusText() {
-    if (qty == 0) return "Out of Stock";
-    if (qty <= 10) return "Low Stock";
+    if (item.hasExcess) return "Excess Usage";
+    if (item.totalStock == 0) return "Out of Stock";
+    if (item.totalStock <= item.lowStockThreshold) return "Low Stock";
     return "Good";
   }
 
   Color _statusColor() {
-    if (qty == 0) return Colors.red;
-    if (qty <= 10) return Colors.orange;
+    if (item.hasExcess) return Colors.purple;
+    if (item.totalStock == 0) return Colors.red;
+    if (item.totalStock <= item.lowStockThreshold) return Colors.orange;
     return Colors.green[900]!;
   }
 
@@ -473,12 +475,14 @@ class _Cell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNegative = text.startsWith('-');
+
     return Expanded(
       flex: flex,
       child: Text(
         text,
         style: TextStyle(
-          color: Colors.green[900],
+          color: isNegative ? Colors.purple : Colors.green[900],
           fontSize: 17,
           fontWeight: FontWeight.w600,
         ),
@@ -486,4 +490,5 @@ class _Cell extends StatelessWidget {
     );
   }
 }
+
 

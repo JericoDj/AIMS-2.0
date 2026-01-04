@@ -15,12 +15,12 @@ class TransactionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 60,
+      height: 80,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.green,
             width: 1,
           ),
         ),
@@ -38,7 +38,9 @@ class TransactionRow extends StatelessWidget {
 
           Expanded(
             flex: 2,
-            child: Row(
+            child: Column(
+
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 GestureDetector(
                   onTap: onView,

@@ -154,9 +154,8 @@ class OfflineInventoryController {
     final item = _items.firstWhere((i) => i.id == itemId);
 
     // FIFO
-    final sorted = [...item.batches]..sort(
-          (a, b) => a.expiry.compareTo(b.expiry),
-    );
+    final sorted = [...item.batches]
+      ..sort((a, b) => a.expiry.compareTo(b.expiry));
 
     int remaining = quantity;
     final List<StockBatch> updatedBatches = [];
@@ -169,7 +168,7 @@ class OfflineInventoryController {
 
       if (batch.quantity <= remaining) {
         remaining -= batch.quantity;
-        // batch fully consumed → DO NOT add
+        // fully consumed → do not add
       } else {
         updatedBatches.add(
           StockBatch(
@@ -181,8 +180,12 @@ class OfflineInventoryController {
       }
     }
 
+    // ✅ TRACK EXCESS (OFFLINE ONLY)
     if (remaining > 0) {
-      throw Exception('Insufficient stock');
+      item.excessUsage += remaining;
+      debugPrint(
+        '⚠️ [OFFLINE] Excess usage for ${item.name}: +$remaining (total ${item.excessUsage})',
+      );
     }
 
     item.batches
@@ -191,17 +194,20 @@ class OfflineInventoryController {
 
     await OfflineInventoryStorage.save(_items);
 
+    // 🧾 Log transaction (POSITIVE quantity)
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(
+        id: _uuid.v4(),
         source: TransactionSource.offline,
         type: TransactionType.dispense,
         itemId: itemId,
         itemName: item.name,
         quantity: quantity,
-        timestamp: DateTime.now(), id: '',
+        timestamp: DateTime.now(),
       ),
     );
   }
+
 
 
   // ================= DELETE =================

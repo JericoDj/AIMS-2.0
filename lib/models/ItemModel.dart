@@ -16,6 +16,9 @@ class ItemModel {
   // 🔔 NOTIFICATION FLAG
   final bool lowStockNotified;
 
+  // 🔴 OFFLINE ONLY (stock debt)
+  int excessUsage;
+
   ItemModel({
     required this.id,
     required this.name,
@@ -26,6 +29,7 @@ class ItemModel {
     required this.batches,
     this.lowStockThreshold = 10,
     this.lowStockNotified = false,
+    this.excessUsage = 0,
   });
 
   // ================= FIRESTORE =================
@@ -41,6 +45,8 @@ class ItemModel {
       nameNormalized: data['name_key'],
       lowStockThreshold: data['lowStockThreshold'] ?? 10,
       lowStockNotified: data['lowStockNotified'] ?? false,
+      // ⚠️ Online should NOT carry excess, but safe fallback
+      excessUsage: data['excessUsage'] ?? 0,
       batches: (data['batches'] as List? ?? [])
           .map(
             (e) => StockBatch.fromMap(
@@ -51,45 +57,40 @@ class ItemModel {
     );
   }
 
-  // ================= FIRESTORE / LOCAL JSON =================
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'category': category,
-    'barcode': barcode,
-    'barcode_image_url': barcodeImageUrl,
-    'name_key': nameNormalized,
-    'lowStockThreshold': lowStockThreshold,
-    'lowStockNotified': lowStockNotified,
-    'batches': batches.map((b) => b.toJson()).toList(),
-  };
-
+  // ================= LOCAL JSON =================
   factory ItemModel.fromJson(Map<String, dynamic> json) {
     return ItemModel(
       id: json['id'] ?? '',
-      name: json['name'],
-      category: json['category'],
+      name: json['name'] ?? '',
+      category: json['category'] ?? '',
       barcode: json['barcode'],
       barcodeImageUrl: json['barcodeImageUrl'],
       nameNormalized: json['nameNormalized'],
       lowStockThreshold: json['lowStockThreshold'] ?? 10,
       lowStockNotified: json['lowStockNotified'] ?? false,
-
-
+      excessUsage: json['excessUsage'] ?? 0, // ✅ FIX
       batches: (json['batches'] as List? ?? [])
           .map(
             (e) => StockBatch.fromJson(
           Map<String, dynamic>.from(e),
         ),
-
-
       )
-
-
           .toList(),
-
-
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'category': category,
+    'barcode': barcode,
+    'barcodeImageUrl': barcodeImageUrl,
+    'nameNormalized': nameNormalized,
+    'lowStockThreshold': lowStockThreshold,
+    'lowStockNotified': lowStockNotified,
+    'excessUsage': excessUsage, // ✅ persist offline debt
+    'batches': batches.map((b) => b.toJson()).toList(),
+  };
 
   // ================= IMMUTABLE UPDATE =================
   ItemModel copyWith({
@@ -101,6 +102,7 @@ class ItemModel {
     List<StockBatch>? batches,
     int? lowStockThreshold,
     bool? lowStockNotified,
+    int? excessUsage,
   }) {
     return ItemModel(
       id: id,
@@ -112,6 +114,7 @@ class ItemModel {
       batches: batches ?? this.batches,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
       lowStockNotified: lowStockNotified ?? this.lowStockNotified,
+      excessUsage: excessUsage ?? this.excessUsage, // ✅ FIX
     );
   }
 
@@ -119,14 +122,22 @@ class ItemModel {
   int get totalStock =>
       batches.fold(0, (sum, b) => sum + b.quantity);
 
-  // ================= RESOLVED THRESHOLD =================
-  int get resolvedLowStockThreshold => lowStockThreshold ?? 10;
+  /// ✅ OFFLINE-AWARE DISPLAY VALUE
+  int get displayStock {
+    if (totalStock > 0) return totalStock;
+    if (excessUsage > 0) return -excessUsage;
+    return 0;
+  }
+
+  bool get hasExcess => excessUsage > 0;
 
   List<StockBatch> get fifoBatches {
     final sorted = [...batches];
     sorted.sort((a, b) => a.expiry.compareTo(b.expiry));
     return sorted;
   }
+
+  int get resolvedLowStockThreshold => lowStockThreshold;
 
   DateTime? get nearestExpiry =>
       batches.isEmpty ? null : fifoBatches.first.expiry;
@@ -137,7 +148,7 @@ class ItemModel {
           : '-';
 
   // ================= STATUS =================
-  bool get isOutOfStock => totalStock == 0;
+  bool get isOutOfStock => displayStock <= 0;
 
   bool get isLowStock =>
       totalStock > 0 && totalStock <= lowStockThreshold;

@@ -6,6 +6,7 @@ import '../../../controllers/inventoryController.dart';
 import '../../../models/ItemModel.dart';
 import '../../../providers/items_provider.dart';
 import '../../../providers/notification_provider.dart';
+import '../../../utils/MyColors.dart';
 import '../../../utils/enums/stock_actions_enum.dart';
 
 class StockActionDialog extends StatefulWidget {
@@ -91,6 +92,38 @@ class _StockActionDialogState extends State<StockActionDialog> {
       initialDate: now,
       firstDate: now,
       lastDate: DateTime(now.year + 10),
+
+      // 🎨 CUSTOM THEME
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: AppColors.primaryGreen,     // header + selected date
+              onPrimary: Colors.white,              // header text
+              surface: Colors.white,                // calendar bg
+              onSurface: AppColors.primaryGreen,    // calendar text
+            ),
+            dialogBackgroundColor: Colors.white,
+
+            // 🎯 DAY CELL STYLE
+            textButtonTheme: TextButtonThemeData(
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primaryGreen, // OK / CANCEL
+                textStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // OPTIONAL: Date numbers style
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(fontWeight: FontWeight.w600),
+              bodyMedium: TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -100,6 +133,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
       });
     }
   }
+
 
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
@@ -214,159 +248,203 @@ class _StockActionDialogState extends State<StockActionDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(25),
+      ),
+      child: Container(
+        width: 650,
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(25),
+          border: Border.all(color: AppColors.primaryGreen, width: 3),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ================= HEADER =================
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const SizedBox(width: 40),
                 Text(
                   _title,
-                  style: const TextStyle(
-                    fontSize: 22,
+                  style: TextStyle(
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
+                    color: Colors.green[700],
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Close',
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close, color: AppColors.primaryGreen),
+                  onPressed: () => Navigator.pop(context),
                 ),
               ],
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // ================= SCAN =================
-            RawKeyboardListener(
-              focusNode: FocusNode(),
-              onKey: (event) {
-                if (event is RawKeyDownEvent &&
-                    (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-                  final value = _scanCtrl.text.trim();
-                  if (value.isEmpty) return;
-
-                  final matches = _handleScanOrSearch(value);
-
-                  if (matches.isNotEmpty) {
-                    _selectItem(matches[_selectedIndex]);
-                  }
-
-                  _scanCtrl.clear();
-                }
-              },
-              child: TextField(
-                controller: _scanCtrl,
-                focusNode: _scanFocus,
-                autofocus: true,
-                enableSuggestions: false,
-                autocorrect: false,
-
-                // ✅ AUTO SEARCH WHILE TYPING
-                onChanged: _onScanTextChanged,
-
-                decoration: const InputDecoration(
-                  labelText: "Scan QR or search item",
-                  prefixIcon: Icon(Icons.qr_code_scanner),
-                ),
-              ),
-
-            ),
-
-            // ================= EXPIRY =================
-            if (widget.mode == StockActionMode.add) ...[
-              const SizedBox(height: 12),
-
-              RawKeyboardListener(
+            _styledField(
+              child: RawKeyboardListener(
                 focusNode: FocusNode(),
                 onKey: (event) {
                   if (event is RawKeyDownEvent &&
                       (event.logicalKey == LogicalKeyboardKey.enter ||
                           event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
+                    final value = _scanCtrl.text.trim();
+                    if (value.isEmpty) return;
 
-                    if (_selectedExpiry == null) {
-                      _pickExpiry(); // open picker
-                    } else {
-                      FocusScope.of(context).requestFocus(_qtyFocus); // go to qty
+                    final matches = _handleScanOrSearch(value);
+                    if (matches.isNotEmpty) {
+                      _selectItem(matches[_selectedIndex]);
                     }
+                    _scanCtrl.clear();
                   }
                 },
+                child: Align(
+                  alignment: Alignment.center,
+                  child: TextField(
+                    controller: _scanCtrl,
+                    focusNode: _scanFocus,
+                    autofocus: true,
+                    textAlignVertical: TextAlignVertical.center,
+                    onChanged: _onScanTextChanged,
+                    decoration: const InputDecoration(
+                      border: InputBorder.none,
+                      hintText: "Scan QR or search item",
+                      prefixIcon: Icon(Icons.qr_code_scanner),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ================= EXPIRY =================
+            if (widget.mode == StockActionMode.add) ...[
+              const SizedBox(height: 12),
+              _styledField(
                 child: TextField(
                   controller: _expiryCtrl,
                   focusNode: _expiryFocus,
+                  textAlignVertical: TextAlignVertical.center,
                   readOnly: true,
                   onTap: _pickExpiry,
                   decoration: const InputDecoration(
-                    labelText: "Expiry Date",
+                    border: InputBorder.none,
+                    hintText: "Expiry Date",
                     prefixIcon: Icon(Icons.calendar_today),
                   ),
                 ),
               ),
             ],
 
-            const SizedBox(height: 12),
-
             // ================= QTY =================
-            if (widget.mode != StockActionMode.view)
-              RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (event) {
-                  if (event is RawKeyDownEvent &&
-                      (event.logicalKey == LogicalKeyboardKey.enter ||
-                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-                    if (_selectedItem == null) return;
-                    _confirmItem(_selectedItem!);
-                  }
-                },
+            if (widget.mode != StockActionMode.view) ...[
+              const SizedBox(height: 12),
+              _styledField(
                 child: TextField(
                   controller: _qtyCtrl,
                   focusNode: _qtyFocus,
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
-                    labelText: "Quantity",
+                    border: InputBorder.none,
+                    hintText: "Quantity",
                   ),
                 ),
               ),
+            ],
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
             // ================= ITEM LIST =================
-            SizedBox(
-              height: 200,
+            Container(
+              height: 220,
+              decoration: BoxDecoration(
+
+                borderRadius: BorderRadius.circular(18),
+              ),
               child: _filteredItems.isEmpty
                   ? const Center(
                 child: Text(
                   "No items found",
-                  style: TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.black87),
                 ),
               )
                   : ListView.builder(
                 itemCount: _filteredItems.length,
                 itemBuilder: (_, index) {
                   final item = _filteredItems[index];
-                  return ListTile(
-                    title: Text(item.name),
-                    subtitle: Text("Stock: ${item.totalStock}"),
+                  final selected = _selectedItem?.id == item.id;
+
+                  return InkWell(
                     onTap: () => _selectItem(item),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? Colors.green.withOpacity(0.15)
+                            : Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: selected
+                              ? AppColors.primaryGreen
+                              : Colors.transparent,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            item.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color:AppColors.primaryGreen,
+                            ),
+                          ),
+                          Text(
+                            "${item.totalStock} pcs",
+                            style: const TextStyle(
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   );
                 },
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
-            const Text(
-              "Scan barcode or type item name then press Enter",
-              style: TextStyle(color: Colors.grey),
+            Center(
+              child: Text(
+                "Scan barcode or type item name then press Enter",
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  Widget _styledField({required Widget child}) {
+    return Container(
+      height: 52, // ✅ fixed height (critical)
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.green),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      alignment: Alignment.center, // ✅ centers child
+      child: child,
+    );
+  }
+
+
 }

@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/cupertino.dart';
 import '../models/SyncRequestModel.dart';
 import '../models/TransactionModel.dart';
 import 'inventoryController.dart';
@@ -16,34 +17,47 @@ class SyncRequestController {
     final Map<String, String> itemIdMap = {};
 
     for (final item in request.inventory) {
-      final itemId = await inventoryCtrl.syncEnsureItem(
+      final onlineItemId = await inventoryCtrl.syncEnsureItem(
         name: item['name'],
         category: item['category'],
       );
 
-      itemIdMap[item['id']] = itemId;
+      itemIdMap[item['id']] = onlineItemId;
     }
 
-    // ================= 2️⃣ APPLY STOCK CHANGES =================
+    // ================= 2️⃣ APPLY TRANSACTIONS SAFELY =================
     for (final tx in request.transactions) {
-      final originalItemId = tx['itemId'];
-      final onlineItemId = itemIdMap[originalItemId];
-
+      final onlineItemId = itemIdMap[tx['itemId']];
       if (onlineItemId == null) continue;
 
-      final offlineTx = InventoryTransaction.fromMap({
+      final mappedTx = InventoryTransaction.fromMap({
         ...tx,
         'itemId': onlineItemId,
       });
 
-      await inventoryCtrl.applyOfflineTransaction(tx: offlineTx);
+      if (mappedTx.type == TransactionType.dispense) {
+        await inventoryCtrl.dispenseWithExcessHandling(
+          itemId: onlineItemId,
+          quantity: mappedTx.quantity!,
+          userName: request.userName,
+        );
+      } else {
+        await inventoryCtrl.applyOfflineTransaction(tx: mappedTx);
+      }
     }
 
     // ================= 3️⃣ LOG TRANSACTIONS =================
     await txCtrl.syncAll(
-      request.transactions
-          .map((e) => InventoryTransaction.fromMap(e))
-          .toList(),
+      request.transactions.map((tx) {
+        final onlineItemId = itemIdMap[tx['itemId']];
+        if (onlineItemId == null) return null;
+
+        return InventoryTransaction.fromMap({
+          ...tx,
+          'itemId': onlineItemId,
+          'userName': request.userName +" (Offline Sync)",
+        });
+      }).whereType<InventoryTransaction>().toList(),
     );
 
     // ================= 4️⃣ MARK APPROVED =================
@@ -55,6 +69,52 @@ class SyncRequestController {
       'approvedAt': Timestamp.now(),
     });
   }
+
+
+
+
+
+  Future<void> _handleExcessSync({
+    required InventoryController inventoryCtrl,
+    required InventoryTransaction tx,
+  }) async {
+    final itemSnap = await FirebaseFirestore.instance
+        .collection('items')
+        .doc(tx.itemId)
+        .get();
+
+    if (!itemSnap.exists) return;
+
+    final data = itemSnap.data()!;
+    final List batches = data['batches'] ?? [];
+
+    final int availableStock = batches.fold<int>(
+      0,
+          (sum, b) => sum + (b['quantity'] as num).toInt(),
+    );
+
+    if (availableStock <= 0) {
+      // ❌ Nothing to dispense online
+      debugPrint(
+        '⚠️ [SYNC] No stock online for ${tx.itemName}, skipping dispense',
+      );
+      return;
+    }
+
+    final int dispenseQty = availableStock.clamp(0, tx.quantity!);
+
+    // ✅ Dispense ONLY what exists online
+    await inventoryCtrl.dispenseStock(
+      itemId: tx.itemId,
+      quantity: dispenseQty,
+    );
+
+    debugPrint(
+      '⚠️ [SYNC] Partial dispense: $dispenseQty / ${tx.quantity} for ${tx.itemName}',
+    );
+  }
+
+
 
   // ================= REJECT =================
   Future<void> rejectSync(SyncRequest request) async {

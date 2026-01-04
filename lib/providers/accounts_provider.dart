@@ -84,9 +84,21 @@ class AccountsProvider extends ChangeNotifier {
     try {
       final snapshot = await _firestore.collection('users').get();
 
-      final users = snapshot.docs
-          .map((doc) => Account.fromMap(doc.data()))
-          .toList();
+      final users = snapshot.docs.map((doc) {
+        final data = doc.data();
+        final account = Account.fromMap(data);
+
+        // 🖨️ PRINT EACH USER (RAW)
+        debugPrint('👤 USER DOCUMENT');
+        debugPrint('• id        : ${account.id}');
+        debugPrint('• fullName  : ${account.fullName}');
+        debugPrint('• email     : ${account.email}');
+        debugPrint('• role      : ${account.role}');
+        debugPrint('• createdAt : ${account.createdAt}');
+        debugPrint('---------------------------');
+
+        return account;
+      }).toList();
 
       _accounts
         ..clear()
@@ -99,11 +111,20 @@ class AccountsProvider extends ChangeNotifier {
         _accounts.insert(0, _currentUser!);
       }
 
+      // 🧾 SUMMARY LOG
+      debugPrint('✅ TOTAL USERS FETCHED: ${_accounts.length}');
+      debugPrint(
+        'Admins: ${_accounts.where((u) => u.role == UserRole.admin).length}, '
+            'Users: ${_accounts.where((u) => u.role == UserRole.user).length}',
+      );
+
       notifyListeners();
-    } catch (e) {
+    } catch (e, s) {
       debugPrint('❌ fetchUsersFromFirestore failed: $e');
+      debugPrintStack(stackTrace: s);
     }
   }
+
 
   // ================= AUTH =================
   Future<void> loginWithEmail({
@@ -151,8 +172,21 @@ class AccountsProvider extends ChangeNotifier {
     required UserRole role,
     required String password,
   }) async {
-    final credential =
-    await _auth.createUserWithEmailAndPassword(
+
+    // ================= ADMIN LIMIT CHECK =================
+    if (role == UserRole.admin) {
+      final adminSnap = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: UserRole.admin.name)
+          .get();
+
+      if (adminSnap.docs.length >= 5) {
+        throw Exception("Maximum of 5 admin accounts allowed");
+      }
+    }
+
+    // ================= CREATE AUTH USER =================
+    final credential = await _auth.createUserWithEmailAndPassword(
       email: email,
       password: password,
     );
@@ -168,14 +202,17 @@ class AccountsProvider extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
 
+    // ================= SAVE TO FIRESTORE =================
     await _firestore
         .collection('users')
         .doc(uid)
         .set(account.toMap());
 
+    // ================= UPDATE LOCAL STATE =================
     _accounts.add(account);
     notifyListeners();
   }
+
 
   // ================= PASSWORD RESET =================
   Future<void> sendPasswordReset(String email) async {

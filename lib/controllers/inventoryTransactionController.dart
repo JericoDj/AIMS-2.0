@@ -28,6 +28,7 @@ class InventoryTransactionController {
     int? quantity,
     DateTime? expiry,
     String source = 'ONLINE',
+    String? userName,
   }) async {
     final user = _getCurrentUser();
 

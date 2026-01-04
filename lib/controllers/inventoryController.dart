@@ -23,6 +23,85 @@ class InventoryController {
         .trim();
   }
 
+  Future<void> dispenseWithExcessHandling({
+    required String itemId,
+    required int quantity,
+    required String userName,
+  }) async {
+    final ref = _firestore.collection('items').doc(itemId);
+
+    String itemName = '';
+    int excess = 0;
+
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+
+      final data = snap.data()!;
+      itemName = data['name'] ?? '';
+
+      List<Map<String, dynamic>> batches =
+      List<Map<String, dynamic>>.from(data['batches'] ?? []);
+
+      batches.sort((a, b) =>
+          DateTime.parse(a['expiry']).compareTo(DateTime.parse(b['expiry'])));
+
+      int available = batches.fold(
+        0,
+            (sum, b) => sum + (b['quantity'] as num).toInt(),
+      );
+
+      int toConsume = quantity > available ? available : quantity;
+      excess = quantity - toConsume;
+
+      int remaining = toConsume;
+
+      for (final b in batches) {
+        if (remaining <= 0) break;
+
+        final q = (b['quantity'] as num).toInt();
+        if (q <= remaining) {
+          remaining -= q;
+          b['quantity'] = 0;
+        } else {
+          b['quantity'] = q - remaining;
+          remaining = 0;
+        }
+      }
+
+      batches.removeWhere((b) => (b['quantity'] as num).toInt() == 0);
+
+      tx.update(ref, {
+        'batches': batches,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 🔴 TRACK EXCESS (AUDIT ONLY)
+      if (excess > 0) {
+        tx.update(ref, {
+          'excessUsage': FieldValue.increment(excess),
+        });
+      }
+    });
+
+    // ✅ LOG FULL OFFLINE INTENT
+    await InventoryTransactionController().log(
+      type: TransactionType.dispense,
+      itemId: itemId,
+      itemName: itemName,
+      quantity: quantity,
+      userName: userName,
+
+    );
+
+    if (excess > 0) {
+      debugPrint(
+        '⚠️ [SYNC] Excess $excess recorded for $itemName',
+      );
+    }
+  }
+
+
   // ================= CREATE =================
   Future<String> createItem({
     required String name,

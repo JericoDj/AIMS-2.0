@@ -31,9 +31,7 @@ class TopDispensedBarChart extends StatelessWidget {
           enabled: true,
           handleBuiltInTouches: true,
           touchTooltipData: BarTouchTooltipData(
-
-            getTooltipColor: (group) => Colors.black87,
-
+            getTooltipColor: (_) => Colors.black87,
             getTooltipItem: (group, _, rod, __) {
               final item = data[group.x.toInt()];
               return BarTooltipItem(
@@ -51,15 +49,21 @@ class TopDispensedBarChart extends StatelessWidget {
               );
             },
           ),
+
+          // 🔑 CLICK ONLY (not hover)
           touchCallback: (event, response) {
-            if (event.isInterestedForInteractions &&
-                response?.spot != null &&
-                onItemTap != null) {
-              final index = response!.spot!.touchedBarGroupIndex;
-              onItemTap!(data[index]);
-            }
+            if (event is! FlTapUpEvent) return; // ❗ ONLY CLICK
+
+            if (response == null || response.spot == null) return;
+
+            final index = response.spot!.touchedBarGroupIndex;
+
+            if (index < 0 || index >= data.length) return;
+
+            onItemTap?.call(data[index]);
           },
         ),
+
         titlesData: FlTitlesData(
           leftTitles: AxisTitles(
             sideTitles: SideTitles(showTitles: true, reservedSize: 40),

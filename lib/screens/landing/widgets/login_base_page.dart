@@ -214,7 +214,7 @@ class _LoginBasePageState extends State<LoginBasePage> {
                                 width: 300,
                                 child: _OfflineModeButton(
                                   onTap: () =>
-                                      context.go('/admin-offline'),
+                                      context.go('/offline'),
                                 ),
                               ),
                             ],

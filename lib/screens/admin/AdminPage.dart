@@ -8,6 +8,7 @@ import '../../models/AppNotification.dart';
 import '../../providers/accounts_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/sync_provider.dart';
+import '../../utils/enums/stock_filter_enum.dart';
 import '../Offline/OfflineInventoryPage.dart';
 import '../Offline/OfflineStockMonitoringPage.dart';
 import '../Offline/OfflineTransactionsPage.dart';
@@ -45,9 +46,10 @@ class _AdminPageState extends State<AdminPage> {
   bool isOfflineMode = false;
 
   String? pendingSearchValue;
+  StockFilter? pendingStockFilter;
 
 
-  int notificationCount = 4; // example for now
+  // int notificationCount = 4; // example for now
 
 
   final GetStorage box = GetStorage();
@@ -69,10 +71,10 @@ class _AdminPageState extends State<AdminPage> {
 
 
   void _showNotificationPanel() {
-    // ✅ FETCH FIRST (outside build)
+    // ✅ Fetch first batch (reset)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<NotificationProvider>().fetchNotifications();
+      context.read<NotificationProvider>().fetchNotifications(refresh: true);
     });
 
     showDialog(
@@ -80,22 +82,15 @@ class _AdminPageState extends State<AdminPage> {
       barrierDismissible: true,
       builder: (_) {
         return Dialog(
-          insetPadding: EdgeInsets.only(
-            top: MediaQuery.sizeOf(context).width * 0.025,
-            left: MediaQuery.sizeOf(context).width * 0.12,
-          ),
           alignment: Alignment.topLeft,
+          insetPadding: EdgeInsets.only(
+            top: MediaQuery.of(context).size.width * 0.025,
+            left: MediaQuery.of(context).size.width * 0.12,
+          ),
           child: Consumer<NotificationProvider>(
             builder: (context, notifProvider, _) {
-              // if (notifProvider.loading) {
-              //   return const Padding(
-              //     padding: EdgeInsets.all(30),
-              //     child: CircularProgressIndicator(),
-              //   );
-              // }
-
               return Container(
-                width: MediaQuery.sizeOf(context).width * .30,
+                width: MediaQuery.of(context).size.width * 0.30,
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -105,7 +100,7 @@ class _AdminPageState extends State<AdminPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // HEADER
+                    // ================= HEADER =================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -123,49 +118,88 @@ class _AdminPageState extends State<AdminPage> {
                       ],
                     ),
 
-                    const SizedBox(height: 15),
+                    const SizedBox(height: 12),
 
-                    if (notifProvider.notifications.isEmpty)
+                    // ================= BODY =================
+                    if (notifProvider.notifications.isEmpty && !notifProvider.loading)
                       const Padding(
                         padding: EdgeInsets.all(20),
-                        child: Text("No notifications available."),
+                        child: Center(child: Text("No notifications available.")),
                       )
                     else
-                      ...notifProvider.notifications.map((n) {
-                        return Column(
-                          children: [
-                            ListTile(
-                              leading: Icon(
-                                n.read
-                                    ? Icons.notifications_none
-                                    : Icons.notifications_active,
-                                color: n.read
-                                    ? Colors.grey
-                                    : Colors.green,
-                              ),
-                              title: Text(
-                                n.title,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                      SizedBox(
+                        height: MediaQuery.of(context).size.height * 0.55, // 🔑 scroll area
+                        child: SingleChildScrollView(
+                          child: Column(
+                            children: [
+                              // ================= LIST =================
+                              ...notifProvider.notifications.map((n) {
+                                return Column(
+                                  children: [
+                                    ListTile(
+                                      leading: Icon(
+                                        n.read
+                                            ? Icons.notifications_none
+                                            : Icons.notifications_active,
+                                        color: n.read ? Colors.grey : Colors.green,
+                                      ),
+                                      title: Text(
+                                        n.title,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      subtitle: Text(n.message),
+                                      trailing: Text(
+                                        _formatTime(n.createdAt),
+                                        style: const TextStyle(fontSize: 11),
+                                      ),
+                                      onTap: () {
+                                        context
+                                            .read<NotificationProvider>()
+                                            .markAsRead(n.id);
+
+                                        Navigator.pop(context);
+                                        _handleNotificationNavigation(n);
+                                      },
+                                    ),
+                                    const Divider(height: 6),
+                                  ],
+                                );
+                              }),
+
+                              // ================= READ MORE =================
+                              if (notifProvider.hasMore)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  child: TextButton(
+                                    onPressed: notifProvider.loading
+                                        ? null
+                                        : () {
+                                      context
+                                          .read<NotificationProvider>()
+                                          .fetchNotifications();
+                                    },
+                                    child: notifProvider.loading
+                                        ? const SizedBox(
+                                      height: 18,
+                                      width: 18,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
+                                    )
+                                        : const Text(
+                                      "Read more",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
-                              subtitle: Text(n.message),
-                              trailing: Text(
-                                _formatTime(n.createdAt),
-                                style: const TextStyle(fontSize: 11),
-                              ),
-                                onTap: () {
-                                  context.read<NotificationProvider>().markAsRead(n.id);
-
-                                  Navigator.pop(context); // close dialog
-
-                                  _handleNotificationNavigation(n);
-                                },
-                            ),
-                            const Divider(height: 5),
-                          ],
-                        );
-                      }).toList(),
+                            ],
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               );
@@ -175,6 +209,7 @@ class _AdminPageState extends State<AdminPage> {
       },
     );
   }
+
 
   void _handleNotificationNavigation(AppNotification n) {
     final type = n.type;
@@ -289,22 +324,22 @@ class _AdminPageState extends State<AdminPage> {
                         child: Stack(
                           children: [
                             Icon(Icons.notifications, size: 30, color: Colors.green[800]),
-                            if (notificationCount > 0)
-                              Positioned(
-                                right: 0,
-                                top: -2,
-                                child: Container(
-                                  padding: const EdgeInsets.all(3),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red,
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  child: Text(
-                                    notificationCount.toString(),
-                                    style: const TextStyle(color: Colors.white, fontSize: 10),
-                                  ),
-                                ),
-                              ),
+                            // if (notificationCount > 0)
+                            //   Positioned(
+                            //     right: 0,
+                            //     top: -2,
+                            //     child: Container(
+                            //       padding: const EdgeInsets.all(3),
+                            //       decoration: BoxDecoration(
+                            //         color: Colors.red,
+                            //         borderRadius: BorderRadius.circular(15),
+                            //       ),
+                            //       // child: Text(
+                            //       //   notificationCount.toString(),
+                            //       //   style: const TextStyle(color: Colors.white, fontSize: 10),
+                            //       // ),
+                            //     ),
+                            //   ),
                           ],
                         ),
                       ),
@@ -317,8 +352,19 @@ class _AdminPageState extends State<AdminPage> {
                 ],
               ),
               const SizedBox(height: 10),
-              const Text("De Jesus, Jerico",
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Consumer<AccountsProvider>(
+                builder: (context, accounts, _) {
+                  final user = accounts.currentUser;
+
+                  return Text(
+                    user?.fullName ?? "Unknown User",
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  );
+                },
+              ),
               Text(
                 isOfflineMode ? "(OFFLINE MODE)" : "Administrator",
                 style: TextStyle(
@@ -344,7 +390,7 @@ class _AdminPageState extends State<AdminPage> {
                   child: Container(
                     height: 48,
                     color: isSelected
-                        ? Colors.lightGreen[300]
+                        ? Colors.green
                         : Colors.transparent,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
@@ -418,11 +464,15 @@ class _AdminPageState extends State<AdminPage> {
                 onPressed: () {
                   context.push('/admin/sync');
                 },
-                icon: const Icon(Icons.sync),
+                icon: const Icon(
+                    color: Colors.white,
+                    Icons.sync),
                 label: Text(
+                  style: const TextStyle(color: Colors.white),
                   syncProvider.syncing ? "Syncing..." : "Sync Requests",
                 ),
                 style: ElevatedButton.styleFrom(
+
                   backgroundColor: Colors.orange[700],
                   minimumSize: const Size(200, 40),
                   shape: RoundedRectangleBorder(
@@ -548,12 +598,12 @@ class _AdminPageState extends State<AdminPage> {
                 const SizedBox(width: 15),
 
                 Expanded(
-                  child: const Text(
+                  child: Text(
                     "Provincial Government of Bulacan Pharmacy",
                     style: TextStyle(
-                        color: Colors.green,
+                        color: Colors.green[600],
                         fontSize: 20,
-                        fontWeight: FontWeight.w600),
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
 
@@ -588,12 +638,29 @@ class _AdminPageState extends State<AdminPage> {
       // ONLINE MODE
       switch (selectedIndex) {
         case 0:
-          return const DashboardPage();
+          return DashboardPage(
+            onStatTap: (filter) {
+              setState(() {
+                isOfflineMode = false;
+                selectedIndex = 2; // Stock Monitoring
+                pendingStockFilter = filter;
+                pendingSearchValue = null;
+              });
+            },
+            onChartItemTap: (itemName) {
+              setState(() {
+                isOfflineMode = false;
+                selectedIndex = 3; // Transactions
+                pendingSearchValue = itemName.toLowerCase();
+              });
+            },
+          );
         case 1:
           return const InventoryPage();
         case 2:
           return StockMonitoringPage(
             initialSearch: pendingSearchValue,
+            initialFilter: pendingStockFilter,
           );
         case 3:
           return TransactionsPage(
