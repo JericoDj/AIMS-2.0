@@ -20,6 +20,7 @@ class InventoryTransaction {
   final String? userId;
   final String? userName;
   final String? userRole;
+  final String? approvedBy;
 
   final TransactionSource source;
   final DateTime timestamp;
@@ -34,6 +35,7 @@ class InventoryTransaction {
     this.userId,
     this.userName,
     this.userRole,
+    this.approvedBy,
     required this.source,
     required this.timestamp,
   });
@@ -57,6 +59,7 @@ class InventoryTransaction {
       userRole: data['userRole'],
       source: TransactionSourceX.fromString(data['source']),
       timestamp: (data['timestamp'] as Timestamp).toDate(),
+      approvedBy: data['approvedBy']
     );
   }
 
@@ -79,6 +82,7 @@ class InventoryTransaction {
       userRole: json['userRole'],
       source: TransactionSourceX.fromString(json['source']),
       timestamp: DateTime.parse(json['timestamp']),
+      approvedBy: json['approvedBy']
     );
   }
 
@@ -93,8 +97,10 @@ class InventoryTransaction {
     'userId': userId,
     'userName': userName,
     'userRole': userRole,
+
     'source': source.value,
     'timestamp': timestamp.toIso8601String(),
+    'approvedBy': approvedBy,
   };
 
   // ================= HELPERS =================

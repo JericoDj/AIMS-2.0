@@ -9,6 +9,7 @@ class SyncRequest {
   final DateTime createdAt;
   final List inventory;
   final List transactions;
+  final String? approvedBy;
 
   SyncRequest({
     required this.id,
@@ -19,6 +20,7 @@ class SyncRequest {
     required this.createdAt,
     required this.inventory,
     required this.transactions,
+    this.approvedBy,
   });
 
   factory SyncRequest.fromFirestore(
@@ -34,6 +36,7 @@ class SyncRequest {
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       inventory: List.from(data['inventory'] ?? []),
       transactions: List.from(data['transactions'] ?? []),
+      approvedBy: data['approvedBy'],
     );
   }
 }

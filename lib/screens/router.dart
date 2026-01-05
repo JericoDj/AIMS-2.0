@@ -58,7 +58,7 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
       // ---------------- LANDING ----------------
       GoRoute(
         path: '/',
-        builder: (_, __) => const LandingPage(),
+        builder: (_, __) => const AdminLoginPage(),
       ),
 
       // ---------------- ADMIN ----------------

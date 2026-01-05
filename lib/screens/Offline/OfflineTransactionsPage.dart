@@ -1,3 +1,4 @@
+import 'package:aims2frontend/screens/Offline/widgets/offline_transaction_row.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -108,7 +109,7 @@ class _OfflineTransactionsPageState extends State<OfflineTransactionsPage> {
                         itemCount: txProvider.transactions.length,
                         itemBuilder: (_, index) {
                           final tx = txProvider.transactions[index];
-                          return TransactionRow(tx: tx, onView: () {  }, onDelete: () {  },);
+                          return OfflineTransactionRow(tx: tx, onView: () {  }, onDelete: () {  },);
                         },
                       );
                     },
@@ -142,8 +143,8 @@ class _TableHeader extends StatelessWidget {
       child: const Row(
         children: [
           _HeaderText("Date", flex: 2),
-          _HeaderText("Item", flex: 3),
-          _HeaderText("Qty", flex: 1),
+          _HeaderText("Item", flex: 2),
+          _HeaderText("Qty", flex: 2),
           _HeaderText("Type", flex: 2),
           _HeaderText("User", flex: 2),
           _HeaderText("Actions", flex: 2),
@@ -164,6 +165,7 @@ class _HeaderText extends StatelessWidget {
     return Expanded(
       flex: flex,
       child: Text(
+        textAlign: TextAlign.center,
         text,
         style: const TextStyle(
           fontSize: 18,

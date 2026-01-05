@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 
@@ -249,11 +251,11 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
       ),
       child: const Row(
         children: [
-          _HeaderCell("Item", flex: 3),
+          _HeaderCell("Item", flex: 2),
           _HeaderCell("Category", flex: 2),
           _HeaderCell("Quantity", flex: 2),
           _HeaderCell("Expiry", flex: 2),
-          _HeaderCell("QR Code", flex: 3),
+          _HeaderCell("QR Code", flex: 2),
           _HeaderCell("Status", flex: 2),
         ],
       ),
@@ -317,6 +319,7 @@ class _HeaderCell extends StatelessWidget {
     return Expanded(
       flex: flex,
       child: Text(
+        textAlign: TextAlign.center,
         text,
         style: const TextStyle(
           color: Colors.white,
@@ -340,7 +343,7 @@ class OfflineStockRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 100,
+      height: 125,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
@@ -353,13 +356,13 @@ class OfflineStockRow extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _Cell(item.name, flex: 3),
+          _Cell(item.name, flex: 2),
           _Cell(item.category, flex: 2),
           _Cell(item.displayStock.toString(), flex: 2),
           _Cell(item.nearestExpiryFormatted, flex: 2),
 
           Expanded(
-            flex: 3,
+            flex: 2,
             child: _QrCell(item: item),
           ),
 
@@ -414,9 +417,6 @@ class _StatusBadge extends StatelessWidget {
     );
   }
 }
-
-
-
 class _QrCell extends StatelessWidget {
   final ItemModel item;
 
@@ -424,43 +424,224 @@ class _QrCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final qr = item.barcodeImageUrl;
+    final barcodeUrl = item.barcodeImageUrl;
 
-    if (qr == null || qr.isEmpty) {
-      return const Icon(Icons.qr_code, color: Colors.grey);
-    }
-
-    final image = qr.startsWith('/')
-        ? Image.file(
-      File(qr),
-      fit: BoxFit.contain,
-    )
-        : Image.network(
-      qr,
-      fit: BoxFit.contain,
-      errorBuilder: (_, __, ___) =>
-      const Icon(Icons.broken_image, color: Colors.red),
-    );
-
-    return GestureDetector(
-      onTap: () {
-        showDialog(
-          context: context,
-          builder: (_) => Dialog(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: image,
+    return Expanded(
+      flex: 2,
+      child: barcodeUrl == null || barcodeUrl.isEmpty
+          ? const Icon(Icons.qr_code, color: Colors.grey)
+          : Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          // ================= SMALL PREVIEW =================
+          SizedBox(
+            height: 70,
+            child: barcodeUrl.startsWith('/')
+                ? Image.file(
+              File(barcodeUrl),
+              fit: BoxFit.contain,
+            )
+                : Image.network(
+              barcodeUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.broken_image,
+                color: Colors.red,
+              ),
             ),
           ),
-        );
-      },
-      child: SizedBox(
-        height: 70,
-        child: image,
+
+          const SizedBox(height: 10),
+
+          // ================= VIEW BUTTON =================
+          InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () {
+              showDialog(
+                context: context,
+                builder: (_) =>
+                    _BarcodeViewerDialog(barcodeUrl: barcodeUrl),
+              );
+            },
+            child: Container(
+              padding:
+              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                border: Border.all(color: Colors.green[700]!),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                "View",
+                style: TextStyle(
+                  color: Colors.green[700],
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
+
+class _BarcodeViewerDialog extends StatelessWidget {
+  final String barcodeUrl;
+
+  const _BarcodeViewerDialog({required this.barcodeUrl});
+
+  Future<void> _saveImage(BuildContext context) async {
+    try {
+      // 1️⃣ Download image
+      final response = await http.get(Uri.parse(barcodeUrl));
+      if (response.statusCode != 200) {
+        throw Exception("Failed to download image");
+      }
+
+      // 2️⃣ Ask WHERE to save
+      final String? folderPath =
+      await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choose where to save the QR / Barcode',
+      );
+
+      if (folderPath == null) return;
+
+      // 3️⃣ Create file
+      final fileName =
+          'barcode_${DateTime.now().millisecondsSinceEpoch}.png';
+      final filePath = '$folderPath/$fileName';
+
+      final file = File(filePath);
+      await file.writeAsBytes(response.bodyBytes);
+
+      if (!context.mounted) return;
+      Navigator.pop(context);
+
+      // 4️⃣ Success feedback
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Saved to:\n$filePath'),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () => _openInExplorer(filePath),
+          ),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save image: $e')),
+      );
+    }
+  }
+
+  void _openInExplorer(String path) async {
+    final file = File(path);
+    if (!file.existsSync()) return;
+
+    if (Platform.isWindows) {
+      await Process.run(
+        'explorer',
+        ['/select,', file.path],
+        runInShell: true,
+      );
+    } else if (Platform.isMacOS) {
+      await Process.run(
+        'open',
+        ['-R', file.path],
+      );
+    } else if (Platform.isLinux) {
+      await Process.run(
+        'xdg-open',
+        [file.parent.path],
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final height = MediaQuery.of(context).size.height * 0.45;
+    final width = MediaQuery.of(context).size.width * 0.45;
+
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: const EdgeInsets.all(20),
+      child: Container(
+        width: width,
+        height: height,
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          children: [
+            // ================= HEADER =================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const SizedBox(width: 40),
+                const Text(
+                  "QR / Barcode Preview",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 10),
+
+            // ================= IMAGE =================
+            Expanded(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 4,
+                child: barcodeUrl.startsWith('/')
+                    ? Image.file(
+                  File(barcodeUrl),
+                  fit: BoxFit.contain,
+                )
+                    : Image.network(
+                  barcodeUrl,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.broken_image,
+                      color: Colors.red, size: 40),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ================= ACTIONS =================
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "Align scanner to code",
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                TextButton.icon(
+                  icon: const Icon(Icons.download, color: Colors.white),
+                  label: const Text(
+                    "Save",
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  onPressed: () => _saveImage(context),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 
 
@@ -480,6 +661,7 @@ class _Cell extends StatelessWidget {
     return Expanded(
       flex: flex,
       child: Text(
+        textAlign: TextAlign.center,
         text,
         style: TextStyle(
           color: isNegative ? Colors.purple : Colors.green[900],

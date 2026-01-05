@@ -2,16 +2,28 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/cupertino.dart';
 import '../models/SyncRequestModel.dart';
 import '../models/TransactionModel.dart';
+import '../providers/accounts_provider.dart';
 import 'inventoryController.dart';
 import 'inventoryTransactionController.dart';
 
 class SyncRequestController {
+
+  final AccountsProvider _accountsProvider;
+  SyncRequestController(this._accountsProvider);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+
 
   // ================= APPROVE =================
   Future<void> applySync(SyncRequest request) async {
+
+
+
     final inventoryCtrl = InventoryController();
     final txCtrl = InventoryTransactionController();
+
+    final approverName =
+        _accountsProvider.currentUser?.fullName ?? 'Unknown Approver';
 
     // ================= 1️⃣ ENSURE ITEMS EXIST =================
     final Map<String, String> itemIdMap = {};
@@ -33,6 +45,7 @@ class SyncRequestController {
       final mappedTx = InventoryTransaction.fromMap({
         ...tx,
         'itemId': onlineItemId,
+        "approvedBy": approverName,
       });
 
       if (mappedTx.type == TransactionType.dispense) {
@@ -40,12 +53,14 @@ class SyncRequestController {
           itemId: onlineItemId,
           quantity: mappedTx.quantity!,
           userName: request.userName,
+
         );
       } else {
         await inventoryCtrl.applyOfflineTransaction(tx: mappedTx);
       }
     }
 
+    // ================= 3️⃣ LOG TRANSACTIONS =================
     // ================= 3️⃣ LOG TRANSACTIONS =================
     await txCtrl.syncAll(
       request.transactions.map((tx) {
@@ -55,7 +70,9 @@ class SyncRequestController {
         return InventoryTransaction.fromMap({
           ...tx,
           'itemId': onlineItemId,
-          'userName': request.userName +" (Offline Sync)",
+          'userName': '${request.userName} (Offline Sync)',
+          'approvedBy': approverName,
+          'approvedAt': Timestamp.now(),
         });
       }).whereType<InventoryTransaction>().toList(),
     );
@@ -67,6 +84,7 @@ class SyncRequestController {
         .update({
       'status': 'approved',
       'approvedAt': Timestamp.now(),
+      'approvedBy': approverName,
     });
   }
 
@@ -104,9 +122,10 @@ class SyncRequestController {
     final int dispenseQty = availableStock.clamp(0, tx.quantity!);
 
     // ✅ Dispense ONLY what exists online
-    await inventoryCtrl.dispenseStock(
+    await inventoryCtrl.dispenseStockNoLogs(
       itemId: tx.itemId,
       quantity: dispenseQty,
+
     );
 
     debugPrint(

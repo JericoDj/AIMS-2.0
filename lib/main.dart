@@ -49,7 +49,15 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AccountsProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
-        ChangeNotifierProvider(create: (_) => TransactionsProvider()),
+        // ✅ CORRECT WAY
+        ChangeNotifierProxyProvider<AccountsProvider, TransactionsProvider>(
+          create: (context) =>
+              TransactionsProvider(context.read<AccountsProvider>()),
+          update: (context, accountsProvider, previous) {
+            previous?.updateAccountsProvider(accountsProvider);
+            return previous ?? TransactionsProvider(accountsProvider);
+          },
+        ),
 
         ChangeNotifierProvider(create: (_) => SyncProvider()),
         ChangeNotifierProvider.value(
@@ -58,8 +66,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => OfflineInventoryProvider(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => SyncRequestProvider(),
+        ChangeNotifierProxyProvider<AccountsProvider, SyncRequestProvider>(
+          create: (context) =>
+              SyncRequestProvider(context.read<AccountsProvider>()),
+          update: (context, accounts, previous) =>
+          previous ?? SyncRequestProvider(accounts),
         ),
         ChangeNotifierProvider(
           create: (_) => NotificationProvider(),

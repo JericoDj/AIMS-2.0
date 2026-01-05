@@ -4,10 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../controllers/syncRequestController.dart';
 import '../models/SyncRequestModel.dart';
+import 'accounts_provider.dart';
 
 class SyncRequestProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final SyncRequestController _controller = SyncRequestController();
+  final SyncRequestController _controller;
+
+  SyncRequestProvider(AccountsProvider accountsProvider)
+      : _controller = SyncRequestController(accountsProvider);
 
   bool loading = false;
   bool syncing = false;

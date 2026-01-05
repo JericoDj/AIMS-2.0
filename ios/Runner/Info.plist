@@ -45,5 +45,20 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<key>FirebaseAppDelegateProxyEnabled</key>
+    <true/>
+
+    <key>NSCameraUsageDescription</key>
+    <string>Camera access is not used by default. It is only required if future features such as QR code scanning are enabled.</string>
+
+    <key>NSAppTransportSecurity</key>
+        <dict>
+            <key>NSAllowsArbitraryLoads</key>
+            <true/>
+        </dict>
+
+        <key>NSKeychainUsageDescription</key>
+        <string>Authentication requires secure credential storage.</string>
 </dict>
 </plist>

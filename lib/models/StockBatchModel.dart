@@ -10,7 +10,18 @@ class StockBatch {
     required this.expiry,
   });
 
-  // ✅ ADD THIS
+  // ================= COPY WITH =================
+  StockBatch copyWith({
+    int? quantity,
+    DateTime? expiry,
+  }) {
+    return StockBatch(
+      quantity: quantity ?? this.quantity,
+      expiry: expiry ?? this.expiry,
+    );
+  }
+
+  // ================= HELPERS =================
   String get expiryFormatted {
     return DateFormat('MMM dd, yyyy').format(expiry);
   }
@@ -27,13 +38,12 @@ class StockBatch {
     );
   }
 
-  // ================= LOCAL JSON =================
+  // ================= SERIALIZE =================
   Map<String, dynamic> toMap() => {
     'quantity': quantity,
     'expiry': expiry.toIso8601String(),
   };
 
-  // ================= ALIAS (clarity) =================
   Map<String, dynamic> toJson() => toMap();
 
   factory StockBatch.fromJson(Map<String, dynamic> json) =>

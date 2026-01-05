@@ -3,8 +3,18 @@ import 'package:flutter/material.dart';
 
 import '../controllers/inventoryTransactionController.dart';
 import '../models/TransactionModel.dart';
+import 'accounts_provider.dart';
 
 class TransactionsProvider extends ChangeNotifier {
+  AccountsProvider? _accountsProvider;
+
+  TransactionsProvider(this._accountsProvider);
+
+
+  void updateAccountsProvider(AccountsProvider provider) {
+    _accountsProvider = provider;
+  }
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final InventoryTransactionController _controller =
@@ -53,6 +63,22 @@ class TransactionsProvider extends ChangeNotifier {
         .orderBy('timestamp', descending: true)
         .limit(_limit);
 
+    // 🔐 USER FILTER (ONLY IF USER ROLE)
+    if (_accountsProvider?.isUser == true) {
+      final fullName = _accountsProvider!.currentUser?.fullName;
+
+      if (fullName != null) {
+        query = query.where(
+          'userName',
+          whereIn: [
+            fullName,
+            '$fullName (Offline Sync)',
+          ],
+        );
+      }
+    }
+
+    // PAGINATION
     if (_lastDoc != null) {
       query = query.startAfterDocument(_lastDoc!);
     }
@@ -79,17 +105,36 @@ class TransactionsProvider extends ChangeNotifier {
 
   /// ---------------- REALTIME (OPTIONAL) ----------------
   Stream<List<InventoryTransaction>> watchLatest({int limit = 10}) {
-    return _firestore
-        .collection('transactions')
+    Query query = _firestore
+        .collection('transactions');
+
+    // 🔐 USER FILTER (ONLY IF USER ROLE)
+    if (_accountsProvider?.isUser == true) {
+      final fullName = _accountsProvider!.currentUser?.fullName;
+
+      if (fullName != null) {
+        query = query.where(
+          'userName',
+          whereIn: [
+            fullName,
+            '$fullName (Offline Sync)',
+          ],
+        );
+      }
+    }
+
+    // 🔽 ORDER + LIMIT (must come AFTER where)
+    query = query
         .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map(
+        .limit(limit);
+
+    return query.snapshots().map(
           (snap) => snap.docs
           .map((e) => InventoryTransaction.fromFirestore(e))
           .toList(),
     );
   }
+
 
   /// ---------------- HELPERS ----------------
   InventoryTransaction? get latest =>

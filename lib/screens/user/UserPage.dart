@@ -101,13 +101,14 @@ class _UserPageState extends State<UserPage> {
           // PROFILE
           Column(
             children: [
-              Align(
-                alignment: Alignment.topRight,
-                child: IconButton(
-                  icon: Icon(Icons.notifications, color: Colors.green[800]),
-                  onPressed: _showNotificationPanel,
+              if (!isOfflineMode)
+                Align(
+                  alignment: Alignment.topRight,
+                  child: IconButton(
+                    icon: Icon(Icons.notifications, color: Colors.green[800]),
+                    onPressed: _showNotificationPanel,
+                  ),
                 ),
-              ),
               const CircleAvatar(
                 radius: 40,
                 backgroundImage: AssetImage("assets/Avatar2.jpeg"),

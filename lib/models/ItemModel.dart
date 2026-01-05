@@ -8,6 +8,7 @@ class ItemModel {
   final String? barcode;
   final String? barcodeImageUrl;
   final String? nameNormalized;
+
   final List<StockBatch> batches;
 
   // 🔔 LOW STOCK CONFIG

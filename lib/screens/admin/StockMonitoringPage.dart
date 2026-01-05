@@ -5,6 +5,7 @@ import 'package:aims2frontend/screens/admin/widgets/test/testBarcodeToDesktop.da
 import 'package:aims2frontend/screens/admin/widgets/test/testButton.dart';
 import 'package:aims2frontend/screens/admin/widgets/test/testDecodeItem.dart';
 import 'package:aims2frontend/screens/admin/widgets/test/testDecryptionButton.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -21,28 +22,25 @@ import 'dialogs/ItemDetailsDialog.dart';
 import 'widgets/ReusableButton.dart';
 
 class StockMonitoringPage extends StatefulWidget {
-
   final StockFilter? initialFilter;
   final String? initialSearch;
+
   const StockMonitoringPage({
     this.initialSearch,
     this.initialFilter,
-    super.key});
-
-
+    super.key,
+  });
 
   @override
   State<StockMonitoringPage> createState() => _StockMonitoringPageState();
 }
 
 class _StockMonitoringPageState extends State<StockMonitoringPage> {
-
-
-
   StockFilter _filter = StockFilter.all;
   String _searchQuery = '';
 
   late final TextEditingController _searchCtrl;
+
   @override
   void initState() {
     super.initState();
@@ -59,10 +57,10 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
       context.read<InventoryProvider>().fetchItems(refresh: true);
     });
   }
+
   @override
   void didUpdateWidget(covariant StockMonitoringPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-
 
     if (widget.initialFilter != oldWidget.initialFilter &&
         widget.initialFilter != null) {
@@ -85,10 +83,6 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
     _searchCtrl.dispose();
     super.dispose();
   }
-
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +107,6 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
             Row(
               children: [
-
                 // TestBarcodeToDesktopButton(
                 //   input: 'item2', // 🔐 value to encrypt (for crypto test)
                 // ),
@@ -129,27 +122,16 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                 //
                 //
                 // DecodeBarcodeButton(assetPath: "assets/barcode.png", originalName: "test3"),
-
                 if (isAdmin)
                   ReusableButton(
-                    label: "Inventory\nReport",
+                    label: "Add\nItem",
                     onTap: () {
                       showDialog(
                         context: context,
-                        builder: (_) => InventoryReportDialog(
-                          onGenerate: (start, end) async {
-                            await InventoryTransactionReportController
-                                .generateInventoryReport(
-                              context,
-                              start: start,
-                              end: end,
-                            );
-                          },
-                        ),
+                        builder: (_) => AddItemDialog(parentContext: context),
                       );
                     },
                   ),
-
 
                 const SizedBox(width: 10),
 
@@ -158,20 +140,19 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   onTap: () {
                     showDialog(
                       context: context,
-                      builder: (_) => InventoryReportDialog(
-                        onGenerate: (start, end) async {
-                          await InventoryTransactionReportController
-                              .generateInventoryReport(
-                            context,
-                            start: start,
-                            end: end,
-                          );
-                        },
-                      ),
+                      builder:
+                          (_) => InventoryReportDialog(
+                            onGenerate: (start, end) async {
+                              await InventoryTransactionReportController.generateInventoryReport(
+                                context,
+                                start: start,
+                                end: end,
+                              );
+                            },
+                          ),
                     );
                   },
                 ),
-
               ],
             ),
           ],
@@ -188,25 +169,24 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(12),
-
                 ),
                 child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: TextField(
-
                     controller: _searchCtrl,
                     onChanged: (value) {
                       setState(() {
                         _searchQuery = value.trim().toLowerCase();
                       });
                     },
-                    decoration:  InputDecoration(
+                    decoration: InputDecoration(
                       border: InputBorder.none,
                       hintText: "Search item...",
                       icon: Icon(
-                          color: Colors.green[700],
-                          fontWeight: FontWeight.bold,
-                          Icons.search),
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.bold,
+                        Icons.search,
+                      ),
                     ),
                   ),
                 ),
@@ -245,7 +225,6 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
               selected: _filter == StockFilter.expiry,
               onTap: () => setState(() => _filter = StockFilter.expiry),
             ),
-
           ],
         ),
 
@@ -274,15 +253,15 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   child: Row(
                     children: const [
                       _HeaderCell("Item", flex: 2),
-                      SizedBox(width: 10,),
+                      SizedBox(width: 10),
                       _HeaderCell("Category", flex: 2),
-                      SizedBox(width: 10,),
+                      SizedBox(width: 10),
                       _HeaderCell("Quantity", flex: 2),
-                      SizedBox(width: 10,),
+                      SizedBox(width: 10),
                       _HeaderCell("Expiry", flex: 2),
-                      SizedBox(width: 10,),
+                      SizedBox(width: 10),
                       _HeaderCell("QR Code", flex: 2),
-                      SizedBox(width: 10,),
+                      SizedBox(width: 10),
                       _HeaderCell("Status", flex: 2),
                     ],
                   ),
@@ -293,9 +272,7 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   child: Consumer<InventoryProvider>(
                     builder: (context, inventory, _) {
                       if (inventory.loading && inventory.items.isEmpty) {
-                        return const Center(
-                          child: CircularProgressIndicator(),
-                        );
+                        return const Center(child: CircularProgressIndicator());
                       }
 
                       // 🔹 APPLY FILTER HERE
@@ -304,19 +281,27 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
                         switch (_filter) {
                           case StockFilter.low:
-                            base = inventory.items.where((i) => i.isLowStock).toList();
+                            base =
+                                inventory.items
+                                    .where((i) => i.isLowStock)
+                                    .toList();
                             break;
 
                           case StockFilter.out:
-                            base = inventory.items.where((i) => i.isOutOfStock).toList();
+                            base =
+                                inventory.items
+                                    .where((i) => i.isOutOfStock)
+                                    .toList();
                             break;
 
                           case StockFilter.expiry:
                             final now = DateTime.now();
-                            base = inventory.items.where((i) {
-                              final exp = i.nearestExpiry;
-                              return exp != null && exp.difference(now).inDays <= 30;
-                            }).toList();
+                            base =
+                                inventory.items.where((i) {
+                                  final exp = i.nearestExpiry;
+                                  return exp != null &&
+                                      exp.difference(now).inDays <= 30;
+                                }).toList();
                             break;
 
                           case StockFilter.all:
@@ -328,11 +313,14 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                         if (_searchQuery.isEmpty) return base;
 
                         return base.where((item) {
-                          return item.name.toLowerCase().contains(_searchQuery) ||
-                              item.category.toLowerCase().contains(_searchQuery);
+                          return item.name.toLowerCase().contains(
+                                _searchQuery,
+                              ) ||
+                              item.category.toLowerCase().contains(
+                                _searchQuery,
+                              );
                         }).toList();
                       }();
-
 
                       if (filteredItems.isEmpty) {
                         return const Center(
@@ -361,7 +349,6 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                     },
                   ),
                 ),
-
               ],
             ),
           ),
@@ -401,16 +388,12 @@ class _FilterChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 }
-
 
 //
 // ========================= TABLE HEADER =========================
@@ -477,7 +460,6 @@ class StockRow extends StatelessWidget {
     return "Good";
   }
 
-
   Color _statusColor() {
     switch (_getStatus()) {
       case "Out of Stock":
@@ -498,16 +480,15 @@ class StockRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.green[700]!,
+        border: Border.all(
+          color: Colors.green[700]!,
           style: BorderStyle.solid,
-          width: 1.2
-
+          width: 1.2,
         ),
       ),
       child: Row(
         children: [
           _Cell(item, flex: 2),
-
 
           _Cell(category, flex: 2),
 
@@ -518,55 +499,57 @@ class StockRow extends StatelessWidget {
           // ================= BARCODE IMAGE CELL =================
           Expanded(
             flex: 2,
-            child: barcodeUrl == null
-                ? const Icon(Icons.qr_code, color: Colors.grey)
-                : Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Small preview
-                Image.network(
-                  barcodeUrl!,
-                  height: 70,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.broken_image,
-                    color: Colors.red,
-                  ),
-                ),
-
-                const SizedBox(height: 10),
-
-                // View button
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.green[50],
-                    border: Border.all(color: Colors.green[700]!),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: TextButton(
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => _BarcodeViewerDialog(
-                          barcodeUrl: barcodeUrl!,
+            child:
+                barcodeUrl == null
+                    ? const Icon(Icons.qr_code, color: Colors.grey)
+                    : Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        // Small preview
+                        Image.network(
+                          barcodeUrl!,
+                          height: 70,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (_, __, ___) => const Icon(
+                                Icons.broken_image,
+                                color: Colors.red,
+                              ),
                         ),
-                      );
-                    },
-                    child: Text(
-                      "View",
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
 
+                        const SizedBox(height: 10),
+
+                        // View button
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.green[50],
+                            border: Border.all(color: Colors.green[700]!),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: TextButton(
+                            onPressed: () {
+                              showDialog(
+                                context: context,
+                                builder:
+                                    (_) => _BarcodeViewerDialog(
+                                      barcodeUrl: barcodeUrl!,
+                                    ),
+                              );
+                            },
+                            child: Text(
+                              "View",
+                              style: TextStyle(
+                                color: Colors.green[700],
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+          ),
 
           // ================= STATUS =================
           Align(
@@ -603,14 +586,17 @@ class StockRow extends StatelessWidget {
                   TextButton.icon(
                     icon: const Icon(
                       fontWeight: FontWeight.bold,
-                        color: Colors.green,
-                        Icons.info_outline, size: 18),
-                    label:  Text(
-                        style: TextStyle(
-                          color: Colors.green[700],
-                          fontWeight: FontWeight.bold,
-
-                        ),"Details"),
+                      color: Colors.green,
+                      Icons.info_outline,
+                      size: 18,
+                    ),
+                    label: Text(
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+                      "Details",
+                    ),
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -622,8 +608,6 @@ class StockRow extends StatelessWidget {
               ),
             ),
           ),
-
-
         ],
       ),
     );
@@ -637,31 +621,73 @@ class _BarcodeViewerDialog extends StatelessWidget {
 
   Future<void> _saveImage(BuildContext context) async {
     try {
+      // 1️⃣ Download image
       final response = await http.get(Uri.parse(barcodeUrl));
       if (response.statusCode != 200) {
         throw Exception("Failed to download image");
       }
 
-      final dir = await getApplicationDocumentsDirectory();
-      final filePath =
-          '${dir.path}/barcode_${DateTime.now().millisecondsSinceEpoch}.png';
+      // 2️⃣ Ask WHERE to save
+      final String? folderPath =
+      await FilePicker.platform.getDirectoryPath(
+        dialogTitle: 'Choose where to save the barcode',
+      );
 
+      if (folderPath == null) return; // user cancelled
+
+      // 3️⃣ Create file path
+      final fileName =
+          'barcode_${DateTime.now().millisecondsSinceEpoch}.png';
+      final filePath = '$folderPath/$fileName';
+
+      // 4️⃣ Save file
       final file = File(filePath);
       await file.writeAsBytes(response.bodyBytes);
 
+      if (!context.mounted) return;
+      Navigator.pop(context); // close barcode preview dialog
+
+      // 5️⃣ Feedback + open folder
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text("Saved to device:\n$filePath"),
+          content: Text('Saved to:\n$filePath'),
+          action: SnackBarAction(
+            label: 'Open',
+            onPressed: () => _openInExplorer(filePath),
+          ),
         ),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Failed to save barcode: $e"),
-        ),
+        SnackBar(content: Text('Failed to save barcode: $e')),
       );
     }
   }
+
+  void _openInExplorer(String path) async {
+    final file = File(path);
+    if (!file.existsSync()) return;
+
+    if (Platform.isWindows) {
+      await Process.run(
+        'explorer',
+        ['/select,', file.path],
+        runInShell: true,
+      );
+    } else if (Platform.isMacOS) {
+      await Process.run(
+        'open',
+        ['-R', file.path],
+      );
+    } else if (Platform.isLinux) {
+      await Process.run(
+        'xdg-open',
+        [file.parent.path],
+      );
+    }
+  }
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -709,11 +735,12 @@ class _BarcodeViewerDialog extends StatelessWidget {
                 child: Image.network(
                   barcodeUrl,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const Icon(
-                    Icons.broken_image,
-                    color: Colors.red,
-                    size: 40,
-                  ),
+                  errorBuilder:
+                      (_, __, ___) => const Icon(
+                        Icons.broken_image,
+                        color: Colors.red,
+                        size: 40,
+                      ),
                 ),
               ),
             ),
@@ -745,7 +772,6 @@ class _BarcodeViewerDialog extends StatelessWidget {
   }
 }
 
-
 //
 // ========================= TABLE CELL =========================
 //
@@ -763,7 +789,6 @@ class _Cell extends StatelessWidget {
         textAlign: TextAlign.center,
         text,
         style: TextStyle(
-
           color: Colors.green[900],
           fontSize: 17,
           fontWeight: FontWeight.w600,
@@ -772,3 +797,5 @@ class _Cell extends StatelessWidget {
     );
   }
 }
+
+

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../../models/TransactionModel.dart';
-class TransactionRow extends StatelessWidget {
+class OfflineTransactionRow extends StatelessWidget {
   final InventoryTransaction tx;
   final VoidCallback onView;
   final VoidCallback onDelete;
 
-  const TransactionRow({
+  const OfflineTransactionRow({
     super.key,
     required this.tx,
     required this.onView,
@@ -31,7 +31,7 @@ class TransactionRow extends StatelessWidget {
             tx.timestamp.toIso8601String().split('T').first,
             flex: 2,
           ),
-          _CellText(tx.itemName, flex: 3),
+          _CellText(tx.itemName, flex: 2),
           _CellText(tx.quantity?.toString() ?? '-', flex: 2),
           _CellText(tx.type.name.toUpperCase(), flex: 2),
           _CellText(tx.userName ?? 'System', flex: 2),
@@ -162,7 +162,7 @@ class _CellText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      
+
       flex: flex,
       child: Text(
         textAlign: TextAlign.center,

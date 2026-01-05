@@ -96,6 +96,75 @@ class InventoryProvider extends ChangeNotifier {
     }).toList();
   }
 
+  Future<void> updateBatchQuantity({
+    required String itemId,
+    required int batchIndex,
+    required int newQty,
+  }) async {
+    final ref = _firestore.collection('items').doc(itemId);
+
+    await _firestore.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      if (!snap.exists) return;
+
+      final data = snap.data()!;
+      final List<Map<String, dynamic>> batches =
+      List<Map<String, dynamic>>.from(data['batches'] ?? []);
+
+      if (batchIndex < 0 || batchIndex >= batches.length) return;
+
+      if (newQty <= 0) {
+        // 🗑️ REMOVE BATCH IF ZERO
+        batches.removeAt(batchIndex);
+      } else {
+        // ✏️ UPDATE QUANTITY
+        batches[batchIndex]['quantity'] = newQty;
+      }
+
+      tx.update(ref, {
+        'batches': batches,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+
+    // ================= LOCAL CACHE UPDATE =================
+    final itemIndex = _items.indexWhere((i) => i.id == itemId);
+    if (itemIndex == -1) return;
+
+    final item = _items[itemIndex];
+    final updatedBatches = [...item.batches];
+
+    if (batchIndex < 0 || batchIndex >= updatedBatches.length) return;
+
+    if (newQty <= 0) {
+      updatedBatches.removeAt(batchIndex);
+    } else {
+      updatedBatches[batchIndex] =
+          updatedBatches[batchIndex].copyWith(quantity: newQty);
+    }
+
+    _items[itemIndex] = item.copyWith(batches: updatedBatches);
+    notifyListeners();
+  }
+
+
+  Future<void> updateExcessUsage({
+    required String itemId,
+    required int value,
+  }) async {
+    await _firestore.collection('items').doc(itemId).update({
+      'excessUsage': value,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+
+    final index = _items.indexWhere((i) => i.id == itemId);
+    if (index != -1) {
+      _items[index] = _items[index].copyWith(excessUsage: value);
+      notifyListeners();
+    }
+  }
+
+
 
 
   Future<void> checkAndSendStockNotifications(

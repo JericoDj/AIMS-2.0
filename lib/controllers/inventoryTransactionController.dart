@@ -66,10 +66,16 @@ class InventoryTransactionController {
       'userId': tx.userId,
       'userName': tx.userName,
       'userRole': tx.userRole,
+
+      // ✅ ADD THESE
+      'approvedBy': tx.approvedBy,
+      'approvedAt': FieldValue.serverTimestamp(),
+
       'source': 'OFFLINE_SYNC',
       'timestamp': FieldValue.serverTimestamp(),
     });
   }
+
 
 
   Future<void> syncAll(List<InventoryTransaction> list) async {
