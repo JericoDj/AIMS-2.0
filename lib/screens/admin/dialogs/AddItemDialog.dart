@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../controllers/inventoryController.dart';
+import '../../../providers/accounts_provider.dart';
 import '../../../providers/items_provider.dart';
 import '../../../utils/enums/item_enum.dart';
 
@@ -37,6 +38,8 @@ class _AddItemDialogState extends State<AddItemDialog> {
     if (_loading) return false;
 
     final messenger = ScaffoldMessenger.maybeOf(context);
+    final accounts = context.read<AccountsProvider>();
+    final user = accounts.currentUser;
 
     final name = _nameCtrl.text.trim();
     print(name);
@@ -85,6 +88,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
       final itemId = await inventory.createItem(
         name: name,
         category: _category!.name,
+        user: user,
       );
 
 
@@ -96,6 +100,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
         itemId: itemId,
         quantity: quantity,
         expiry: _expiryDate!,
+        user: user,
       );
 
       print("stock added");

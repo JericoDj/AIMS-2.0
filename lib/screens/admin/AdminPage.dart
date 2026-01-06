@@ -52,12 +52,14 @@ class _AdminPageState extends State<AdminPage> {
   // int notificationCount = 4; // example for now
 
 
-  final GetStorage box = GetStorage();
+  final GetStorage box = GetStorage('current_user');
 
   bool _hasValidOfflineUser() {
 
 
     final data = box.read(_currentUserKey);
+
+    debugPrint('🔍 OFFLINE CHECK current_user = $data');
 
     if (data == null) return false;
     if (data is! Map) return false;
@@ -424,7 +426,7 @@ class _AdminPageState extends State<AdminPage> {
               child: ElevatedButton.icon(
                   onPressed: () async {
 
-                    final box = GetStorage();
+                    final box = GetStorage('current_user');
                     final data = box.read('current_user');
 
                     if (data == null || data is! Map) {

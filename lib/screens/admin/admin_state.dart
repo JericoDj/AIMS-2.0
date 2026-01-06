@@ -3,7 +3,7 @@ import 'navigation/admin_menu.dart';
 
 class AdminState {
   final bool forceOffline;
-  final GetStorage box = GetStorage();
+  final GetStorage box = GetStorage("current_user");
 
   int selectedIndex = 0;
   bool isOfflineMode = false;

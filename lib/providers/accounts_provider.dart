@@ -13,7 +13,8 @@ class AccountsProvider extends ChangeNotifier {
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GetStorage _box = GetStorage();
+  // final GetStorage _box = GetStorage();
+  final GetStorage _box = GetStorage('current_user');
 
   static const String _currentUserKey = 'current_user';
 
@@ -45,18 +46,39 @@ class AccountsProvider extends ChangeNotifier {
 
   // ================= CURRENT USER STORAGE =================
   void _loadCurrentUser() {
+
+    print("loading current user");
     final data = _box.read(_currentUserKey);
+
+    print(data);
     if (data != null) {
+
       _currentUser = Account.fromMap(
         Map<String, dynamic>.from(data),
       );
       notifyListeners();
+    } else {
+      print("no current user found in storage");
     }
   }
 
-  void _saveCurrentUser(Account user) {
-    _box.write(_currentUserKey, user.toMap());
+  Future<void> _saveCurrentUser(Account user) async {
+    debugPrint('💾 Saving current user to storage');
+    final data = user.toMap();
+    debugPrint(data.toString());
+
+    await _box.write(_currentUserKey, data);
+
+    // 🔍 VERIFY WRITE
+    final verify = _box.read(_currentUserKey);
+    if (verify == null) {
+      debugPrint('❌ VERIFY FAILED: current_user NOT found after write');
+    } else {
+      debugPrint('✅ VERIFY SUCCESS: current_user saved');
+      debugPrint(verify.toString());
+    }
   }
+
 
   void _clearCurrentUser() {
     _box.remove(_currentUserKey);
