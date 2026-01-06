@@ -35,7 +35,7 @@ class _UserPageState extends State<UserPage> {
   String? pendingSearchValue;
   StockFilter? pendingStockFilter;
 
-  final GetStorage box = GetStorage();
+  final GetStorage box = GetStorage("current_user");
 
   bool _hasValidOfflineUser() {
     final data = box.read(_currentUserKey);

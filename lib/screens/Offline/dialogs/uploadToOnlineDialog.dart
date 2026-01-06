@@ -24,7 +24,7 @@ class _UploadToOnlineDialogState extends State<UploadToOnlineDialog> {
 
     try {
       // ================= OFFLINE USER CHECK =================
-      final box = GetStorage();
+      final box = GetStorage('current_user');
       final rawUser = box.read('current_user');
 
       if (rawUser == null || rawUser is! Map) {

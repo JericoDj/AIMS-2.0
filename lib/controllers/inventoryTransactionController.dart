@@ -1,7 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:http/http.dart' as context;
 
+import '../models/AccountModel.dart';
 import '../models/TransactionModel.dart';
+import '../providers/accounts_provider.dart';
 import '../utils/storage_keys.dart';
 
 class InventoryTransactionController {
@@ -12,12 +17,25 @@ class InventoryTransactionController {
   Map<String, dynamic>? _getCurrentUser() {
     try {
       final raw = _box.read(StorageKeys.currentUser);
-      if (raw == null || raw is! Map) return null;
-      return Map<String, dynamic>.from(raw);
-    } catch (_) {
+
+      // ✅ Expected case: stored map
+      if (raw is Map<String, dynamic>) {
+        return raw;
+      }
+
+      // ✅ Some GetStorage versions return Map<dynamic, dynamic>
+      if (raw is Map) {
+        return Map<String, dynamic>.from(raw);
+      }
+
+      // ❌ Anything else is invalid
+      return null;
+    } catch (e) {
+      debugPrint('⚠️ _getCurrentUser failed: $e');
       return null;
     }
   }
+
 
   /// ================= LOG (ONLINE) =================
   /// ⚠️ MUST NEVER THROW
@@ -25,12 +43,17 @@ class InventoryTransactionController {
     required TransactionType type,
     required String itemId,
     required String itemName,
+    required Account? user, // 👈 USER IS PASSED IN
     int? quantity,
     DateTime? expiry,
     String source = 'ONLINE',
-    String? userName,
   }) async {
-    final user = _getCurrentUser();
+    debugPrint(
+      '🧾 [LOG] userId=${user?.id}, '
+          'userName=${user?.fullName}, '
+          'role=${user?.role.name}, '
+          'source=$source',
+    );
 
     final payload = {
       'type': type.name.toUpperCase(),
@@ -40,9 +63,10 @@ class InventoryTransactionController {
       'quantity': quantity,
       'expiry': expiry?.toIso8601String(),
 
-      'userId': user?['id'],
-      'userName': user?['fullName'],
-      'userRole': _safeRole(user?['role']),
+      // ✅ DIRECT, RELIABLE USER
+      'userId': user?.id,
+      'userName': user?.fullName,
+      'userRole': user?.role.name,
 
       'source': source,
       'timestamp': FieldValue.serverTimestamp(),
@@ -51,9 +75,11 @@ class InventoryTransactionController {
     try {
       await _firestore.collection('transactions').add(payload);
     } catch (_) {
-      // swallow error — inventory must continue
+      // ❗ logging must NEVER break inventory
     }
   }
+
+
 
   /// ================= SYNC (OFFLINE → ONLINE) =================
   Future<void> sync(InventoryTransaction tx) async {

@@ -5,7 +5,7 @@ import '../models/TransactionModel.dart';
 import '../controllers/inventoryTransactionController.dart';
 
 class SyncProvider extends ChangeNotifier {
-  final GetStorage _box = GetStorage();
+  final GetStorage _box = GetStorage("current_user");
 
   static const String _offlineTransactionsKey = 'offline_transactions';
 

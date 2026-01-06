@@ -6,7 +6,7 @@ class ItemModel {
   final String name;
   final String category;
   final String? barcode;
-  final String? barcodeImageUrl;
+  String? barcodeImageUrl;
   final String? nameNormalized;
 
   final List<StockBatch> batches;

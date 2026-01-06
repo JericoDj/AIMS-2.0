@@ -189,7 +189,7 @@ class _SearchField extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+
       ),
       child: const Padding(
         padding: EdgeInsets.symmetric(horizontal: 10),
@@ -197,7 +197,9 @@ class _SearchField extends StatelessWidget {
           decoration: InputDecoration(
             border: InputBorder.none,
             hintText: "Search transaction...",
-            icon: Icon(Icons.search),
+            icon: Icon(
+                color: Colors.green,
+                Icons.search),
           ),
         ),
       ),

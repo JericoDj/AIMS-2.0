@@ -8,20 +8,24 @@ class OfflineQrUtil {
   static Future<String> generateAndSaveQr({
     required String itemId,
   }) async {
-    // Generate QR PNG (same logic as online)
     final Uint8List pngBytes =
     await BarcodeController.generateQrPng(itemId);
 
-    final dir = await getApplicationDocumentsDirectory();
-    final qrDir = Directory('${dir.path}/offline_qr');
+    // ✅ SAME BASE DIR AS JSON
+    final baseDir = await getApplicationSupportDirectory();
+    final qrDir = Directory(
+      '${baseDir.path}${Platform.pathSeparator}offline_data',
+    );
 
     if (!await qrDir.exists()) {
       await qrDir.create(recursive: true);
     }
 
-    final file = File('${qrDir.path}/$itemId.png');
-    await file.writeAsBytes(pngBytes);
+    final file =
+    File('${qrDir.path}${Platform.pathSeparator}$itemId.png');
 
-    return file.path; // local file path
+    await file.writeAsBytes(pngBytes, flush: true);
+
+    return file.path; // ✅ absolute, stable path
   }
 }

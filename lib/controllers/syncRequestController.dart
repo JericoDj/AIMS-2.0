@@ -17,6 +17,8 @@ class SyncRequestController {
   // ================= APPROVE =================
   Future<void> applySync(SyncRequest request) async {
 
+    print('✅ Applying sync for request id: ${request.id}');
+
 
 
     final inventoryCtrl = InventoryController();
@@ -27,38 +29,90 @@ class SyncRequestController {
 
     // ================= 1️⃣ ENSURE ITEMS EXIST =================
     final Map<String, String> itemIdMap = {};
+    print('🔄 Ensuring declarations');
 
     for (final item in request.inventory) {
-      final onlineItemId = await inventoryCtrl.syncEnsureItem(
-        name: item['name'],
-        category: item['category'],
-      );
+      try {
+        final name = item['name'];
+        final category = item['category'];
 
-      itemIdMap[item['id']] = onlineItemId;
-    }
+        if (name == null || category == null) {
+          debugPrint('⚠️ Skipping invalid item: $item');
+          continue;
+        }
 
-    // ================= 2️⃣ APPLY TRANSACTIONS SAFELY =================
-    for (final tx in request.transactions) {
-      final onlineItemId = itemIdMap[tx['itemId']];
-      if (onlineItemId == null) continue;
+        debugPrint('🔄 Syncing item: $name');
 
-      final mappedTx = InventoryTransaction.fromMap({
-        ...tx,
-        'itemId': onlineItemId,
-        "approvedBy": approverName,
-      });
-
-      if (mappedTx.type == TransactionType.dispense) {
-        await inventoryCtrl.dispenseWithExcessHandling(
-          itemId: onlineItemId,
-          quantity: mappedTx.quantity!,
-          userName: request.userName,
-
+        final onlineItemId = await inventoryCtrl.syncEnsureItem(
+          name: name,
+          category: category,
         );
-      } else {
-        await inventoryCtrl.applyOfflineTransaction(tx: mappedTx);
+
+        itemIdMap[item['id']] = onlineItemId;
+
+        debugPrint('✅ Item synced: $name → $onlineItemId');
+      } catch (e, s) {
+        debugPrint('❌ Failed syncing item: ${item['name']}');
+        debugPrint('❌ Error: $e');
+        debugPrintStack(stackTrace: s);
+
+        // 🚨 DO NOT STOP THE WHOLE SYNC
+        continue;
       }
     }
+
+
+    print('done first part');
+    // ================= 2️⃣ APPLY TRANSACTIONS SAFELY =================
+    for (final tx in request.transactions) {
+      try {
+        debugPrint('➡️ Applying tx: ${tx['id'] ?? tx['type']}');
+
+        final onlineItemId = itemIdMap[tx['itemId']];
+        if (onlineItemId == null) {
+          debugPrint('⚠️ Skipped tx, itemId not mapped: ${tx['itemId']}');
+          continue;
+        }
+
+        final mappedTx = InventoryTransaction.fromMap({
+          ...tx,
+          'itemId': onlineItemId,
+          'approvedBy': approverName,
+        });
+
+        // 🔒 SAFETY CHECK
+        if (mappedTx.quantity == null || mappedTx.quantity! <= 0) {
+          debugPrint('⚠️ Invalid quantity for tx ${mappedTx.id}');
+          continue;
+        }
+
+        if (mappedTx.type == TransactionType.dispense) {
+          debugPrint('🔴 Dispense ${mappedTx.quantity} of $onlineItemId');
+
+          await inventoryCtrl.dispenseWithExcessHandling(
+            itemId: onlineItemId,
+            quantity: mappedTx.quantity!,
+            userName: request.userName,
+          );
+        } else {
+          debugPrint('🟢 Apply tx ${mappedTx.type}');
+
+          await inventoryCtrl.applyOfflineTransaction(
+            tx: mappedTx,
+          );
+        }
+
+        debugPrint('✅ Tx applied');
+      } catch (e, s) {
+        debugPrint('❌ TX FAILED: ${tx.toString()}');
+        debugPrint('❌ Error: $e');
+        debugPrintStack(stackTrace: s);
+
+        // 🚨 IMPORTANT: continue, never crash sync
+        continue;
+      }
+    }
+    print('done second part');
 
     // ================= 3️⃣ LOG TRANSACTIONS =================
     // ================= 3️⃣ LOG TRANSACTIONS =================

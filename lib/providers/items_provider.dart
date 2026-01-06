@@ -20,6 +20,7 @@ class InventoryProvider extends ChangeNotifier {
   bool _loading = false;
   bool _hasMore = true;
 
+
   List<ItemModel> get items => _items;
   bool get loading => _loading;
   bool get hasMore => _hasMore;

@@ -9,9 +9,21 @@ class OfflineInventoryStorage {
   static const _fileName = 'offline_items.json';
 
   static Future<File> _file() async {
-    final dir = await getApplicationDocumentsDirectory();
-    return File('${dir.path}/$_fileName');
+    final baseDir = await getApplicationSupportDirectory();
+
+    final dataDir = Directory(
+      '${baseDir.path}${Platform.pathSeparator}offline_data',
+    );
+
+    if (!await dataDir.exists()) {
+      await dataDir.create(recursive: true);
+    }
+
+    return File(
+      '${dataDir.path}${Platform.pathSeparator}$_fileName',
+    );
   }
+
 
   // ================= SAVE =================
   // ================= SAVE =================

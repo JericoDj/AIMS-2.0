@@ -1,6 +1,6 @@
 import 'package:get_storage/get_storage.dart';
 
-final box = GetStorage();
+final box = GetStorage("current_user");
 
 void saveOfflineUser({
   required String uid,

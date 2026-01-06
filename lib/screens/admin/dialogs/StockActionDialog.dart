@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../controllers/inventoryController.dart';
 import '../../../models/ItemModel.dart';
+import '../../../providers/accounts_provider.dart';
 import '../../../providers/items_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../../utils/MyColors.dart';
@@ -141,31 +142,36 @@ class _StockActionDialogState extends State<StockActionDialog> {
   Future<void> _confirmItem(ItemModel item) async {
     if (_isSubmitting) return;
 
-    setState(() {
-      _isSubmitting = true;
-    });
+    setState(() => _isSubmitting = true);
 
     final inventory = InventoryController();
     final notifProvider = context.read<NotificationProvider>();
     final inventoryProvider = context.read<InventoryProvider>();
+    final user = context.read<AccountsProvider>().currentUser; // ✅ FIX
 
     try {
+      // ================= VIEW MODE =================
       if (widget.mode == StockActionMode.view) {
         _showItemDetails(item);
         return;
       }
 
       final qty = int.tryParse(_qtyCtrl.text);
-      if (qty == null || qty <= 0) return;
+      if (qty == null || qty <= 0) {
+        throw Exception('Invalid quantity');
+      }
 
       // ================= ADD STOCK =================
       if (widget.mode == StockActionMode.add) {
-        if (_selectedExpiry == null) return;
+        if (_selectedExpiry == null) {
+          throw Exception('Expiry date required');
+        }
 
         await inventory.addStock(
           itemId: item.id,
           quantity: qty,
           expiry: _selectedExpiry!,
+          user: user, // ✅ explicit user
         );
 
         await notifProvider.createNotification(
@@ -183,6 +189,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
         await inventory.dispenseStock(
           itemId: item.id,
           quantity: qty,
+          user: user, // ✅ explicit user
         );
 
         await notifProvider.createNotification(
@@ -211,12 +218,11 @@ class _StockActionDialogState extends State<StockActionDialog> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-        });
+        setState(() => _isSubmitting = false);
       }
     }
   }
+
 
 
 

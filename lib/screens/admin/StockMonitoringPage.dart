@@ -142,14 +142,14 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                       context: context,
                       builder:
                           (_) => InventoryReportDialog(
-                            onGenerate: (start, end) async {
-                              await InventoryTransactionReportController.generateInventoryReport(
-                                context,
-                                start: start,
-                                end: end,
-                              );
-                            },
-                          ),
+                        onGenerate: (start, end) async {
+                          await InventoryTransactionReportController.generateInventoryReport(
+                            context,
+                            start: start,
+                            end: end,
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
@@ -314,8 +314,8 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
 
                         return base.where((item) {
                           return item.name.toLowerCase().contains(
-                                _searchQuery,
-                              ) ||
+                            _searchQuery,
+                          ) ||
                               item.category.toLowerCase().contains(
                                 _searchQuery,
                               );
@@ -500,55 +500,56 @@ class StockRow extends StatelessWidget {
           Expanded(
             flex: 2,
             child:
-                barcodeUrl == null
-                    ? const Icon(Icons.qr_code, color: Colors.grey)
-                    : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        // Small preview
-                        Image.network(
-                          barcodeUrl!,
-                          height: 70,
-                          fit: BoxFit.contain,
-                          errorBuilder:
-                              (_, __, ___) => const Icon(
-                                Icons.broken_image,
-                                color: Colors.red,
-                              ),
-                        ),
+            barcodeUrl == null
+                ? const Icon(Icons.qr_code, color: Colors.grey)
+                : Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Small preview
+                Image.network(
+                  barcodeUrl!,
+                  height: 70,
+                  fit: BoxFit.contain,
+                  errorBuilder:
+                      (_, __, ___) => const Icon(
+                    Icons.broken_image,
+                    color: Colors.red,
+                  ),
+                ),
 
-                        const SizedBox(height: 10),
+                const SizedBox(height: 10),
 
-                        // View button
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green[50],
-                            border: Border.all(color: Colors.green[700]!),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder:
-                                    (_) => _BarcodeViewerDialog(
-                                      barcodeUrl: barcodeUrl!,
-                                    ),
-                              );
-                            },
-                            child: Text(
-                              "View",
-                              style: TextStyle(
-                                color: Colors.green[700],
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                // View button
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    border: Border.all(color: Colors.green[700]!),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: TextButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder:
+                            (_) => _BarcodeViewerDialog(
+                              name: item,
+                          barcodeUrl: barcodeUrl!,
                         ),
-                      ],
+                      );
+                    },
+                    child: Text(
+                      "View",
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           // ================= STATUS =================
@@ -616,8 +617,11 @@ class StockRow extends StatelessWidget {
 
 class _BarcodeViewerDialog extends StatelessWidget {
   final String barcodeUrl;
+  final String name;
 
-  const _BarcodeViewerDialog({required this.barcodeUrl});
+  const _BarcodeViewerDialog({
+    required this.name,
+    required this.barcodeUrl});
 
   Future<void> _saveImage(BuildContext context) async {
     try {
@@ -637,7 +641,7 @@ class _BarcodeViewerDialog extends StatelessWidget {
 
       // 3️⃣ Create file path
       final fileName =
-          'barcode_${DateTime.now().millisecondsSinceEpoch}.png';
+          'QR_${name}.png';
       final filePath = '$folderPath/$fileName';
 
       // 4️⃣ Save file
@@ -691,8 +695,8 @@ class _BarcodeViewerDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.4;
-    final width = MediaQuery.of(context).size.width * 0.4;
+    final height = MediaQuery.of(context).size.height * 0.55;
+    final width = MediaQuery.of(context).size.width * 0.55;
 
     return Dialog(
       backgroundColor: Colors.black,
@@ -737,10 +741,10 @@ class _BarcodeViewerDialog extends StatelessWidget {
                   fit: BoxFit.contain,
                   errorBuilder:
                       (_, __, ___) => const Icon(
-                        Icons.broken_image,
-                        color: Colors.red,
-                        size: 40,
-                      ),
+                    Icons.broken_image,
+                    color: Colors.red,
+                    size: 40,
+                  ),
                 ),
               ),
             ),

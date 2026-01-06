@@ -122,7 +122,7 @@ class _OfflineInventoryPageState extends State<OfflineInventoryPage> {
 
           // ---------------- BOTTOM ROW ----------------
           SizedBox(
-            height: MediaQuery.sizeOf(context).height * 0.5,
+            height: MediaQuery.sizeOf(context).height * 0.4,
             child: Row(
               children: [
                 // LEFT — RECENT OFFLINE TRANSACTIONS

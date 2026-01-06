@@ -546,7 +546,7 @@ import '../../providers/transactions_provider.dart';
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade300),
+
                   ),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 10),
@@ -560,7 +560,9 @@ import '../../providers/transactions_provider.dart';
                       decoration: const InputDecoration(
                         border: InputBorder.none,
                         hintText: "Search transaction...",
-                        icon: Icon(Icons.search),
+                        icon: Icon(
+                            color: Colors.green,
+                            Icons.search),
                       ),
                     ),
 

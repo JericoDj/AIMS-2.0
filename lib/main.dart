@@ -16,29 +16,51 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import 'firebase_options.dart';
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 🔑 MUST await this
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  print('🔥 Firebase apps: ${Firebase.apps}');
-
-
-  final dir = await getApplicationDocumentsDirectory();
-  final storageDir = Directory(dir.path);
-
-  if (!await storageDir.exists()) {
-    await storageDir.create(recursive: true);
+  // ✅ Windows-safe directory
+  final supportDir = await getApplicationSupportDirectory();
+  if (!await supportDir.exists()) {
+    await supportDir.create(recursive: true);
   }
 
+  // =====================================================
+  // 🔐 GETSTORAGE INITIALIZATION (CORRECT & ORDERED)
+  // =====================================================
+
+  // 1️⃣ Initialize default container (required internally)
   await GetStorage.init();
+
+  // 2️⃣ Create your named container WITH PATH
+  final currentUserBox = GetStorage('current_user', supportDir.path);
+
+  // 3️⃣ Force init (important on Windows)
+  await currentUserBox.initStorage;
+
+  // =====================================================
+  // 🔍 DEBUG: READ STORED USER BEFORE APP STARTS
+  // =====================================================
+  final storedUser = currentUserBox.read('current_user');
+
+  debugPrint('🔎 [BOOT] Stored current_user:');
+  if (storedUser == null) {
+    debugPrint('❌ No user found in storage');
+  } else {
+    debugPrint('✅ User FOUND in storage');
+    debugPrint(storedUser.toString());
+  }
 
   runApp(const MyApp());
 }
+
+
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

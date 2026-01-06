@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
@@ -28,6 +30,24 @@ class OfflineInventoryController {
 
     debugPrint('📦 [OFFLINE] Loading items from disk...');
     final loaded = await OfflineInventoryStorage.load();
+
+    for (final item in loaded) {
+      final path = item.barcodeImageUrl;
+
+      if (path == null || path.isEmpty) {
+        debugPrint('🔧 Missing QR for ${item.name}, regenerating...');
+        item.barcodeImageUrl =
+        await OfflineQrUtil.generateAndSaveQr(itemId: item.id);
+        continue;
+      }
+
+      final file = File(path);
+      if (!file.existsSync()) {
+        debugPrint('🔧 QR file missing for ${item.name}, regenerating...');
+        item.barcodeImageUrl =
+        await OfflineQrUtil.generateAndSaveQr(itemId: item.id);
+      }
+    }
 
     _items
       ..clear()
@@ -179,6 +199,7 @@ class OfflineInventoryController {
         remaining = 0;
       }
     }
+
 
     // ✅ TRACK EXCESS (OFFLINE ONLY)
     if (remaining > 0) {

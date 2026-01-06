@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -424,84 +425,91 @@ class _QrCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final barcodeUrl = item.barcodeImageUrl;
+    final barcodePath = item.barcodeImageUrl;
 
-    return Expanded(
-      flex: 2,
-      child: barcodeUrl == null || barcodeUrl.isEmpty
-          ? const Icon(Icons.qr_code, color: Colors.grey)
-          : Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // ================= SMALL PREVIEW =================
-          SizedBox(
-            height: 70,
-            child: barcodeUrl.startsWith('/')
-                ? Image.file(
-              File(barcodeUrl),
-              fit: BoxFit.contain,
-            )
-                : Image.network(
-              barcodeUrl,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.broken_image,
-                color: Colors.red,
+    if (barcodePath == null || barcodePath.isEmpty) {
+      return const Icon(Icons.qr_code, color: Colors.grey);
+    }
+
+    final file = File(barcodePath);
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: 70,
+          child: file.existsSync()
+              ? Image.file(file, fit: BoxFit.contain)
+              : const Icon(Icons.broken_image, color: Colors.red),
+        ),
+        const SizedBox(height: 10),
+        InkWell(
+          onTap: () {
+            showDialog(
+              context: context,
+              builder: (_) => _BarcodeViewerDialog(
+
+                  name: item.name,
+                  barcodeUrl: barcodePath),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              border: Border.all(color: Colors.green[700]!),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              "View",
+              style: TextStyle(
+                color: Colors.green[700],
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
               ),
             ),
           ),
-
-          const SizedBox(height: 10),
-
-          // ================= VIEW BUTTON =================
-          InkWell(
-            borderRadius: BorderRadius.circular(6),
-            onTap: () {
-              showDialog(
-                context: context,
-                builder: (_) =>
-                    _BarcodeViewerDialog(barcodeUrl: barcodeUrl),
-              );
-            },
-            child: Container(
-              padding:
-              const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green[50],
-                border: Border.all(color: Colors.green[700]!),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                "View",
-                style: TextStyle(
-                  color: Colors.green[700],
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _BarcodeViewerDialog extends StatelessWidget {
   final String barcodeUrl;
+  final String name;
 
-  const _BarcodeViewerDialog({required this.barcodeUrl});
+  const _BarcodeViewerDialog({
+    required this.name,
+    required this.barcodeUrl,
+  });
+
+  bool get _isLocalFile {
+    return barcodeUrl.startsWith('/') ||        // macOS / Linux
+        barcodeUrl.contains(':\\') ||            // Windows
+        File(barcodeUrl).existsSync();
+  }
 
   Future<void> _saveImage(BuildContext context) async {
     try {
-      // 1️⃣ Download image
-      final response = await http.get(Uri.parse(barcodeUrl));
-      if (response.statusCode != 200) {
-        throw Exception("Failed to download image");
+      late Uint8List bytes;
+
+      // ================= LOAD IMAGE =================
+      if (_isLocalFile) {
+        final file = File(barcodeUrl);
+        if (!file.existsSync()) {
+          throw Exception('QR image file not found');
+        }
+        bytes = await file.readAsBytes();
+      } else {
+        final response = await http.get(Uri.parse(barcodeUrl));
+        if (response.statusCode != 200) {
+          throw Exception("Failed to download image");
+        }
+        bytes = response.bodyBytes;
       }
 
-      // 2️⃣ Ask WHERE to save
+      // ================= PICK DESTINATION =================
       final String? folderPath =
       await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Choose where to save the QR / Barcode',
@@ -509,18 +517,15 @@ class _BarcodeViewerDialog extends StatelessWidget {
 
       if (folderPath == null) return;
 
-      // 3️⃣ Create file
-      final fileName =
-          'barcode_${DateTime.now().millisecondsSinceEpoch}.png';
-      final filePath = '$folderPath/$fileName';
+      final safeName =
+      name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final filePath = '$folderPath/QR_$safeName.png';
 
-      final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
+      await File(filePath).writeAsBytes(bytes);
 
       if (!context.mounted) return;
       Navigator.pop(context);
 
-      // 4️⃣ Success feedback
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Saved to:\n$filePath'),
@@ -548,30 +553,23 @@ class _BarcodeViewerDialog extends StatelessWidget {
         runInShell: true,
       );
     } else if (Platform.isMacOS) {
-      await Process.run(
-        'open',
-        ['-R', file.path],
-      );
+      await Process.run('open', ['-R', file.path]);
     } else if (Platform.isLinux) {
-      await Process.run(
-        'xdg-open',
-        [file.parent.path],
-      );
+      await Process.run('xdg-open', [file.parent.path]);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.45;
-    final width = MediaQuery.of(context).size.width * 0.45;
+    final height = MediaQuery.of(context).size.height * 0.50;
+    final width = MediaQuery.of(context).size.width * 0.50;
 
     return Dialog(
       backgroundColor: Colors.black,
       insetPadding: const EdgeInsets.all(20),
-      child: Container(
+      child: SizedBox(
         width: width,
         height: height,
-        padding: const EdgeInsets.all(12),
         child: Column(
           children: [
             // ================= HEADER =================
@@ -600,7 +598,7 @@ class _BarcodeViewerDialog extends StatelessWidget {
               child: InteractiveViewer(
                 minScale: 1,
                 maxScale: 4,
-                child: barcodeUrl.startsWith('/')
+                child: _isLocalFile
                     ? Image.file(
                   File(barcodeUrl),
                   fit: BoxFit.contain,
@@ -618,22 +616,25 @@ class _BarcodeViewerDialog extends StatelessWidget {
             const SizedBox(height: 10),
 
             // ================= ACTIONS =================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  "Align scanner to code",
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.download, color: Colors.white),
-                  label: const Text(
-                    "Save",
-                    style: TextStyle(color: Colors.white),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Align scanner to code",
+                    style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
-                  onPressed: () => _saveImage(context),
-                ),
-              ],
+                  TextButton.icon(
+                    icon: const Icon(Icons.download, color: Colors.white),
+                    label: const Text(
+                      "Save",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    onPressed: () => _saveImage(context),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -641,6 +642,7 @@ class _BarcodeViewerDialog extends StatelessWidget {
     );
   }
 }
+
 
 
 

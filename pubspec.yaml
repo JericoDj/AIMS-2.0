@@ -101,7 +101,7 @@ flutter:
   assets:
     - assets/App_Logo.jpg
     - assets/
-    - assets/test_barcode.png
+
   #   - images/a_dot_burr.jpeg
   #   - images/a_dot_ham.jpeg
 
