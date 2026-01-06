@@ -13,7 +13,7 @@ class AdminTopBar extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 20),
-          Image.asset("assets/8xLogo.png", height: 40),
+          Image.asset("assets/aims2landinglogo.png", height: 40),
           const SizedBox(width: 15),
           const Expanded(
             child: Text(

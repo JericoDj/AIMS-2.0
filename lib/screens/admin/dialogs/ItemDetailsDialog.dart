@@ -109,7 +109,7 @@ class _ItemDetailsDialogState extends State<ItemDetailsDialog> {
                     const Text("Low Stock Threshold"),
                     const SizedBox(width: 10),
                     SizedBox(
-                      width: 80,
+                      width: 150,
                       child: TextField(
                         controller: _lowStockCtrl,
                         keyboardType: TextInputType.number,

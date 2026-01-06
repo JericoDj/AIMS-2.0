@@ -68,7 +68,7 @@ class _LoginBasePageState extends State<LoginBasePage> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Image.asset(
-                                "assets/8xLogo.png",
+                                "assets/aims2landinglogo.png",
                                 height: 180,
                               ),
                               const SizedBox(height: 12),

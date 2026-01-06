@@ -292,6 +292,7 @@ class InventoryController {
         itemName = data['name'] ?? '';
 
         final int excessUsage = (data['excessUsage'] ?? 0) as int;
+        final int oldMaxStock = (data['maxStock'] ?? 0) as int;
 
         List<Map<String, dynamic>> batches =
         List<Map<String, dynamic>>.from(data['batches'] ?? []);
@@ -308,17 +309,15 @@ class InventoryController {
           });
         }
 
-        // 🟢 ADD REMAINING STOCK TO BATCHES
+        // 🟢 ADD REMAINING STOCK
         if (remainingQty > 0) {
           final expiryKey = expiry.toIso8601String();
-
           final index =
           batches.indexWhere((b) => b['expiry'] == expiryKey);
 
           if (index != -1) {
             batches[index]['quantity'] =
-                (batches[index]['quantity'] as num).toInt() +
-                    remainingQty;
+                (batches[index]['quantity'] as num).toInt() + remainingQty;
           } else {
             batches.add({
               'quantity': remainingQty,
@@ -327,13 +326,26 @@ class InventoryController {
           }
         }
 
+        // 📊 CALCULATE TOTAL STOCK AFTER ADD
+        final int totalStock =
+        batches.fold(0, (sum, b) => sum + (b['quantity'] as num).toInt());
+
+        // 📈 UPDATE MAX STOCK (ONLY IF GROWN)
+        final int newMaxStock =
+        totalStock > oldMaxStock ? totalStock : oldMaxStock;
+
+        // 🎯 AUTO LOW-STOCK THRESHOLD (50%)
+        final int autoThreshold = (newMaxStock * 0.5).round();
+
         tx.update(ref, {
           'batches': batches,
+          'maxStock': newMaxStock,
+          'lowStockThreshold': autoThreshold,
           'updatedAt': FieldValue.serverTimestamp(),
         });
       });
 
-      debugPrint('🟢 [addStock] Completed with debt reconciliation');
+      debugPrint('🟢 [addStock] Completed with debt + threshold update');
     } catch (e, s) {
       debugPrint('❌ [addStock] FAILED: $e');
       debugPrintStack(stackTrace: s);
@@ -358,6 +370,7 @@ class InventoryController {
 
 
 
+
   Future<void> addStockNoLogs({
     required String itemId,
     required int quantity,
@@ -371,13 +384,14 @@ class InventoryController {
 
       final data = snap.data()!;
       final int excessUsage = (data['excessUsage'] ?? 0) as int;
+      final int oldMaxStock = (data['maxStock'] ?? 0) as int;
 
       List<Map<String, dynamic>> batches =
       List<Map<String, dynamic>>.from(data['batches'] ?? []);
 
       int remainingQty = quantity;
 
-      // 🔴 STEP 1: PAY DEBT FIRST
+      // 🔴 PAY OFF DEBT FIRST
       if (excessUsage > 0) {
         final usedForDebt = remainingQty.clamp(0, excessUsage);
         remainingQty -= usedForDebt;
@@ -387,34 +401,43 @@ class InventoryController {
         });
       }
 
-      // 🟢 STEP 2: ADD REMAINING STOCK
+      // 🟢 ADD STOCK
       if (remainingQty > 0) {
         final expiryKey = expiry.toIso8601String();
-
         final index =
         batches.indexWhere((b) => b['expiry'] == expiryKey);
 
         if (index != -1) {
           batches[index]['quantity'] =
-              (batches[index]['quantity'] as num).toInt() +
-                  remainingQty;
+              (batches[index]['quantity'] as num).toInt() + remainingQty;
         } else {
           batches.add({
             'quantity': remainingQty,
             'expiry': expiryKey,
           });
         }
-
-        tx.update(ref, {
-          'batches': batches,
-        });
       }
 
+      // 📊 TOTAL STOCK
+      final int totalStock =
+      batches.fold(0, (sum, b) => sum + (b['quantity'] as num).toInt());
+
+      // 📈 MAX STOCK
+      final int newMaxStock =
+      totalStock > oldMaxStock ? totalStock : oldMaxStock;
+
+      // 🎯 50% THRESHOLD
+      final int autoThreshold = (newMaxStock * 0.5).round();
+
       tx.update(ref, {
+        'batches': batches,
+        'maxStock': newMaxStock,
+        'lowStockThreshold': autoThreshold,
         'updatedAt': FieldValue.serverTimestamp(),
       });
     });
   }
+
 
 
 
@@ -442,6 +465,7 @@ class InventoryController {
         List<Map<String, dynamic>> batches =
         List<Map<String, dynamic>>.from(data['batches'] ?? []);
 
+        // FIFO by expiry
         batches.sort(
               (a, b) => DateTime.parse(a['expiry'])
               .compareTo(DateTime.parse(b['expiry'])),
@@ -453,7 +477,7 @@ class InventoryController {
         for (final b in batches) {
           if (remaining <= 0) break;
 
-          final q = (b['quantity'] as num).toInt();
+          final int q = (b['quantity'] as num).toInt();
           if (q <= remaining) {
             remaining -= q;
             b['quantity'] = 0;
@@ -463,17 +487,19 @@ class InventoryController {
           }
         }
 
+        // Remove empty batches
         batches.removeWhere(
               (b) => (b['quantity'] as num).toInt() == 0,
         );
 
-        // 🔴 IF STILL NEED → RECORD DEBT
+        // 🔴 RECORD DEBT IF NEEDED
         if (remaining > 0) {
           tx.update(ref, {
             'excessUsage': FieldValue.increment(remaining),
           });
         }
 
+        // ⚠️ DO NOT TOUCH maxStock / threshold
         tx.update(ref, {
           'batches': batches,
           'updatedAt': FieldValue.serverTimestamp(),
@@ -503,6 +529,7 @@ class InventoryController {
   }
 
 
+
   Future<void> dispenseStockNoLogs({
     required String itemId,
     required int quantity,
@@ -517,10 +544,11 @@ class InventoryController {
       List<Map<String, dynamic>> batches =
       List<Map<String, dynamic>>.from(data['batches'] ?? []);
 
-      batches.sort((a, b) =>
-          DateTime.parse(a['expiry']).compareTo(
-            DateTime.parse(b['expiry']),
-          ));
+      // FIFO by expiry
+      batches.sort(
+            (a, b) => DateTime.parse(a['expiry'])
+            .compareTo(DateTime.parse(b['expiry'])),
+      );
 
       int remaining = quantity;
 
@@ -528,7 +556,7 @@ class InventoryController {
       for (final b in batches) {
         if (remaining <= 0) break;
 
-        final q = (b['quantity'] as num).toInt();
+        final int q = (b['quantity'] as num).toInt();
         if (q <= remaining) {
           remaining -= q;
           b['quantity'] = 0;
@@ -538,17 +566,19 @@ class InventoryController {
         }
       }
 
+      // Remove empty batches
       batches.removeWhere(
             (b) => (b['quantity'] as num).toInt() == 0,
       );
 
-      // 🔴 IF STILL NEED → ADD DEBT
+      // 🔴 RECORD DEBT
       if (remaining > 0) {
         tx.update(ref, {
           'excessUsage': FieldValue.increment(remaining),
         });
       }
 
+      // ⚠️ DO NOT TOUCH maxStock / threshold
       tx.update(ref, {
         'batches': batches,
         'updatedAt': FieldValue.serverTimestamp(),

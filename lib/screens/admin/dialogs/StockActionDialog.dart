@@ -28,6 +28,8 @@ class _StockActionDialogState extends State<StockActionDialog> {
   // ✅ MISSING FIELDS (FIX)
   final TextEditingController _expiryCtrl = TextEditingController();
   final FocusNode _expiryFocus = FocusNode();
+
+  bool _isSubmitting = false;
   DateTime? _selectedExpiry;
 
   ItemModel? _selectedItem;
@@ -137,65 +139,83 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
+    if (_isSubmitting) return;
+
+    setState(() {
+      _isSubmitting = true;
+    });
+
     final inventory = InventoryController();
     final notifProvider = context.read<NotificationProvider>();
     final inventoryProvider = context.read<InventoryProvider>();
 
-    if (widget.mode == StockActionMode.view) {
-      _showItemDetails(item);
-      return;
+    try {
+      if (widget.mode == StockActionMode.view) {
+        _showItemDetails(item);
+        return;
+      }
+
+      final qty = int.tryParse(_qtyCtrl.text);
+      if (qty == null || qty <= 0) return;
+
+      // ================= ADD STOCK =================
+      if (widget.mode == StockActionMode.add) {
+        if (_selectedExpiry == null) return;
+
+        await inventory.addStock(
+          itemId: item.id,
+          quantity: qty,
+          expiry: _selectedExpiry!,
+        );
+
+        await notifProvider.createNotification(
+          itemId: item.id,
+          itemName: item.name,
+          type: 'STOCK_ADDED',
+          message: 'Added $qty pcs to ${item.name}',
+        );
+
+        await inventoryProvider.fetchItems(refresh: true);
+      }
+
+      // ================= DISPENSE STOCK =================
+      if (widget.mode == StockActionMode.dispense) {
+        await inventory.dispenseStock(
+          itemId: item.id,
+          quantity: qty,
+        );
+
+        await notifProvider.createNotification(
+          itemId: item.id,
+          itemName: item.name,
+          type: 'DISPENSE',
+          message: 'Dispensed $qty pcs from ${item.name}',
+        );
+
+        await inventoryProvider.fetchItems(refresh: true);
+        await inventoryProvider.checkAndSendStockNotifications(
+          notifProvider,
+        );
+      }
+
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      debugPrint('❌ Confirm action failed: $e');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Something went wrong. Please try again.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
-
-    final qty = int.tryParse(_qtyCtrl.text);
-    if (qty == null || qty <= 0) return;
-
-    // ================= ADD STOCK =================
-    if (widget.mode == StockActionMode.add) {
-      if (_selectedExpiry == null) return;
-
-      await inventory.addStock(
-        itemId: item.id,
-        quantity: qty,
-        expiry: _selectedExpiry!,
-      );
-
-      // 🔔 CREATE ADD-STOCK NOTIFICATION
-      await notifProvider.createNotification(
-        itemId: item.id,
-        itemName: item.name,
-        type: 'STOCK_ADDED',
-        message: 'Added $qty pcs to ${item.name}',
-      );
-    }
-
-    // ================= DISPENSE STOCK =================
-    if (widget.mode == StockActionMode.dispense) {
-      await inventory.dispenseStock(
-        itemId: item.id,
-        quantity: qty,
-      );
-
-      // 🔔 CREATE DISPENSE NOTIFICATION
-      await notifProvider.createNotification(
-        itemId: item.id,
-        itemName: item.name,
-        type: 'DISPENSE',
-        message: 'Dispensed $qty pcs from ${item.name}',
-      );
-
-      // 🔄 Refresh inventory
-      await inventoryProvider.fetchItems(refresh: true);
-
-      // 🔔 LOW-STOCK / OUT-OF-STOCK CHECK
-      await inventoryProvider.checkAndSendStockNotifications(notifProvider);
-    }
-
-    // 🔄 Refresh after add (optional but safe)
-    if (widget.mode == StockActionMode.add) {
-      await inventoryProvider.fetchItems(refresh: true);
-    }
-
-    Navigator.pop(context);
   }
 
 

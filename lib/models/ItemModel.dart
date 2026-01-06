@@ -11,6 +11,9 @@ class ItemModel {
 
   final List<StockBatch> batches;
 
+  // 📈 STOCK HISTORY
+  final int maxStock;
+
   // 🔔 LOW STOCK CONFIG
   final int lowStockThreshold;
 
@@ -28,6 +31,7 @@ class ItemModel {
     this.barcodeImageUrl,
     this.nameNormalized,
     required this.batches,
+    this.maxStock = 0,
     this.lowStockThreshold = 10,
     this.lowStockNotified = false,
     this.excessUsage = 0,
@@ -44,19 +48,16 @@ class ItemModel {
       barcode: data['barcode'],
       barcodeImageUrl: data['barcode_image_url'],
       nameNormalized: data['name_key'],
+      maxStock: data['maxStock'] ?? 0,
       lowStockThreshold: data['lowStockThreshold'] ?? 10,
       lowStockNotified: data['lowStockNotified'] ?? false,
-      // ⚠️ Online should NOT carry excess, but safe fallback
       excessUsage: data['excessUsage'] ?? 0,
       batches: (data['batches'] as List? ?? [])
-          .map(
-            (e) => StockBatch.fromMap(
-          Map<String, dynamic>.from(e),
-        ),
-      )
+          .map((e) => StockBatch.fromMap(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }
+
 
   // ================= LOCAL JSON =================
   factory ItemModel.fromJson(Map<String, dynamic> json) {
@@ -67,18 +68,16 @@ class ItemModel {
       barcode: json['barcode'],
       barcodeImageUrl: json['barcodeImageUrl'],
       nameNormalized: json['nameNormalized'],
+      maxStock: json['maxStock'] ?? 0,
       lowStockThreshold: json['lowStockThreshold'] ?? 10,
       lowStockNotified: json['lowStockNotified'] ?? false,
-      excessUsage: json['excessUsage'] ?? 0, // ✅ FIX
+      excessUsage: json['excessUsage'] ?? 0,
       batches: (json['batches'] as List? ?? [])
-          .map(
-            (e) => StockBatch.fromJson(
-          Map<String, dynamic>.from(e),
-        ),
-      )
+          .map((e) => StockBatch.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
     );
   }
+
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -87,11 +86,13 @@ class ItemModel {
     'barcode': barcode,
     'barcodeImageUrl': barcodeImageUrl,
     'nameNormalized': nameNormalized,
+    'maxStock': maxStock,
     'lowStockThreshold': lowStockThreshold,
     'lowStockNotified': lowStockNotified,
-    'excessUsage': excessUsage, // ✅ persist offline debt
+    'excessUsage': excessUsage,
     'batches': batches.map((b) => b.toJson()).toList(),
   };
+
 
   // ================= IMMUTABLE UPDATE =================
   ItemModel copyWith({
@@ -101,6 +102,7 @@ class ItemModel {
     String? barcodeImageUrl,
     String? nameNormalized,
     List<StockBatch>? batches,
+    int? maxStock,
     int? lowStockThreshold,
     bool? lowStockNotified,
     int? excessUsage,
@@ -113,13 +115,21 @@ class ItemModel {
       barcodeImageUrl: barcodeImageUrl ?? this.barcodeImageUrl,
       nameNormalized: nameNormalized ?? this.nameNormalized,
       batches: batches ?? this.batches,
+      maxStock: maxStock ?? this.maxStock,
       lowStockThreshold: lowStockThreshold ?? this.lowStockThreshold,
       lowStockNotified: lowStockNotified ?? this.lowStockNotified,
-      excessUsage: excessUsage ?? this.excessUsage, // ✅ FIX
+      excessUsage: excessUsage ?? this.excessUsage,
     );
   }
-
   // ================= HELPERS =================
+
+
+  int get autoLowStockThreshold {
+    if (maxStock <= 0) return lowStockThreshold;
+    return (maxStock * 0.5).round();
+  }
+
+
   int get totalStock =>
       batches.fold(0, (sum, b) => sum + b.quantity);
 
@@ -152,5 +162,5 @@ class ItemModel {
   bool get isOutOfStock => displayStock <= 0;
 
   bool get isLowStock =>
-      totalStock > 0 && totalStock <= lowStockThreshold;
+      totalStock > 0 && totalStock <= autoLowStockThreshold;
 }
