@@ -5,7 +5,7 @@ class Account {
   final String fullName;
   final String email;
   final UserRole role;
-  final String? image;
+  final String? photoUrl;
   final bool isActive;
   final DateTime createdAt;
 
@@ -14,7 +14,9 @@ class Account {
     required this.fullName,
     required this.email,
     required this.role,
-    this.image,
+
+
+    this.photoUrl,
     this.isActive = true,
     required this.createdAt,
   });
@@ -25,11 +27,28 @@ class Account {
       fullName: map['fullName'] ?? '',
       email: map['email'] ?? '',
       role: UserRoleX.fromString(map['role']),
-      image: map['image'],
+      photoUrl: map['photoUrl'] ?? map['image'], //
       isActive: map['isActive'] ?? true,
       createdAt: DateTime.parse(map['createdAt']),
     );
   }
+
+  Account copyWith({
+    String? fullName,
+    String? email,
+    UserRole? role,
+    String? photoUrl,
+  }) {
+    return Account(
+      id: id,
+      fullName: fullName ?? this.fullName,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      photoUrl: photoUrl ?? this.photoUrl,
+      createdAt: createdAt,
+    );
+  }
+
 
   Map<String, dynamic> toMap() {
     return {
@@ -37,7 +56,7 @@ class Account {
       'fullName': fullName,
       'email': email,
       'role': role.value,
-      'image': image,
+      'photoUrl': photoUrl,
       'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
     };

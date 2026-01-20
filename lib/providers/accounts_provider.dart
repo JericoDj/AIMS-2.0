@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
@@ -148,6 +150,10 @@ class AccountsProvider extends ChangeNotifier {
   }
 
 
+
+
+
+
   // ================= AUTH =================
   Future<void> loginWithEmail({
     required String email,
@@ -220,7 +226,7 @@ class AccountsProvider extends ChangeNotifier {
       fullName: fullName,
       email: email,
       role: role,
-      image: 'assets/Avatar2.jpeg',
+      photoUrl: null,
       createdAt: DateTime.now(),
     );
 
@@ -323,12 +329,26 @@ class AccountsProvider extends ChangeNotifier {
       fullName: 'Administrator',
       email: 'admin@app.local',
       role: UserRole.admin,
-      image: 'assets/JericoDeJesus.png',
+      photoUrl: 'assets/JericoDeJesus.png',
       createdAt: DateTime.now(),
     );
 
     _currentUser = admin;
     _saveCurrentUser(admin);
+    notifyListeners();
+  }
+
+  Future<void> updatePhoto(String url) async {
+    if (_currentUser == null) return;
+
+    final uid = _currentUser!.id;
+
+    await _firestore.collection('users').doc(uid).update({
+      'photoUrl': url,
+    });
+
+    _currentUser = _currentUser!.copyWith(photoUrl: url);
+    _saveCurrentUser(_currentUser!);
     notifyListeners();
   }
 }

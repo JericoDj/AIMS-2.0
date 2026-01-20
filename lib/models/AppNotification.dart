@@ -7,7 +7,7 @@ class AppNotification {
   final String title;
   final String message;
   final String type;
-  final bool read;
+  final Map<String, dynamic> readBy; // <--- NEW
   final DateTime createdAt;
 
   AppNotification({
@@ -17,13 +17,12 @@ class AppNotification {
     required this.title,
     required this.message,
     required this.type,
-    required this.read,
+    required this.readBy,
     required this.createdAt,
   });
 
   factory AppNotification.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
     final type = data['type'] ?? '';
 
     return AppNotification(
@@ -33,13 +32,17 @@ class AppNotification {
       type: type,
       title: _titleFromType(type),
       message: data['message'] ?? '',
-      read: data['read'] ?? false,
+      readBy: data['readBy'] != null
+          ? Map<String, dynamic>.from(data['readBy'])
+          : {}, // <-- default empty
       createdAt:
       (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  AppNotification copyWith({bool? read}) {
+  AppNotification copyWith({
+    Map<String, dynamic>? readBy,
+  }) {
     return AppNotification(
       id: id,
       itemId: itemId,
@@ -47,9 +50,27 @@ class AppNotification {
       title: title,
       message: message,
       type: type,
-      read: read ?? this.read,
+      readBy: readBy ?? this.readBy,
       createdAt: createdAt,
     );
+  }
+
+  AppNotification copyWithReadBy(Map<String, dynamic> newReadBy) {
+    return AppNotification(
+      id: id,
+      itemId: itemId,
+      itemName: itemName,
+      title: title,
+      message: message,
+      type: type,
+      readBy: newReadBy,
+      createdAt: createdAt,
+    );
+  }
+
+  // Derived helper
+  bool isReadBy(String userId) {
+    return readBy[userId] == true;
   }
 
   // ---------------- HELPERS ----------------

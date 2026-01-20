@@ -1,3 +1,6 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +26,7 @@ import 'TransactionsPage.dart';
 
 // OFFLINE PAGES
 
+import 'package:image_picker/image_picker.dart';
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key, this.forceOffline});
@@ -51,6 +55,14 @@ class _AdminPageState extends State<AdminPage> {
 
   // int notificationCount = 4; // example for now
 
+  int unreadCount(String userId, List<AppNotification> list) {
+    return list.where((n) {
+      final readMap = n.readBy ?? {};
+      return readMap[userId] != true;
+    }).length;
+  }
+
+
 
   final GetStorage box = GetStorage('current_user');
 
@@ -72,12 +84,17 @@ class _AdminPageState extends State<AdminPage> {
 
 
 
+
+
   void _showNotificationPanel() {
-    // ✅ Fetch first batch (reset)
+    // fetch first batch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<NotificationProvider>().fetchNotifications(refresh: true);
     });
+
+    final userId = context.read<AccountsProvider>().currentUser?.id;
+    if (userId == null) return;
 
     showDialog(
       context: context,
@@ -91,6 +108,8 @@ class _AdminPageState extends State<AdminPage> {
           ),
           child: Consumer<NotificationProvider>(
             builder: (context, notifProvider, _) {
+              final unread = unreadCount(userId, notifProvider.notifications);
+
               return Container(
                 width: MediaQuery.of(context).size.width * 0.30,
                 padding: const EdgeInsets.all(15),
@@ -102,48 +121,81 @@ class _AdminPageState extends State<AdminPage> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ================= HEADER =================
+                    // ---------------- HEADER ----------------
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Notifications",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            const Text(
+                              "Notifications",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (unread > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8),
+                                child: Text(
+                                  "($unread unread)",
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.close, size: 22),
+                        Row(
+                          children: [
+                            if (unread > 0)
+                              TextButton(
+                                onPressed: () {
+                                  context.read<NotificationProvider>().markAllAsRead(userId);
+                                },
+                                child: const Text(
+                                  "Mark all as read",
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            GestureDetector(
+                              onTap: () => Navigator.pop(context),
+                              child: const Icon(Icons.close, size: 22),
+                            ),
+                          ],
                         ),
                       ],
                     ),
 
                     const SizedBox(height: 12),
 
-                    // ================= BODY =================
-                    if (notifProvider.notifications.isEmpty && !notifProvider.loading)
+                    // ---------------- BODY ----------------
+                    if (notifProvider.notifications.isEmpty &&
+                        !notifProvider.loading)
                       const Padding(
                         padding: EdgeInsets.all(20),
                         child: Center(child: Text("No notifications available.")),
                       )
                     else
                       SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.55, // 🔑 scroll area
+                        height: MediaQuery.of(context).size.height * 0.55,
                         child: SingleChildScrollView(
                           child: Column(
                             children: [
-                              // ================= LIST =================
                               ...notifProvider.notifications.map((n) {
+                                final isRead = (n.readBy?[userId] == true);
+
                                 return Column(
                                   children: [
                                     ListTile(
                                       leading: Icon(
-                                        n.read
+                                        isRead
                                             ? Icons.notifications_none
                                             : Icons.notifications_active,
-                                        color: n.read ? Colors.grey : Colors.green,
+                                        color:
+                                        isRead ? Colors.grey : Colors.green,
                                       ),
                                       title: Text(
                                         n.title,
@@ -159,7 +211,7 @@ class _AdminPageState extends State<AdminPage> {
                                       onTap: () {
                                         context
                                             .read<NotificationProvider>()
-                                            .markAsRead(n.id);
+                                            .markAsRead(n.id, userId);
 
                                         Navigator.pop(context);
                                         _handleNotificationNavigation(n);
@@ -170,10 +222,10 @@ class _AdminPageState extends State<AdminPage> {
                                 );
                               }),
 
-                              // ================= READ MORE =================
                               if (notifProvider.hasMore)
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
+                                  padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
                                   child: TextButton(
                                     onPressed: notifProvider.loading
                                         ? null
@@ -210,6 +262,13 @@ class _AdminPageState extends State<AdminPage> {
         );
       },
     );
+  }
+
+
+  int getUnread(NotificationProvider provider, String userId) {
+    return provider.notifications.where((n) {
+      return n.readBy?[userId] != true;
+    }).length;
   }
 
 
@@ -282,8 +341,46 @@ class _AdminPageState extends State<AdminPage> {
     {"icon": Icons.settings, "label": "Settings"},
   ];
 
+
+
   @override
   Widget build(BuildContext context) {
+
+
+
+    Future<String> uploadProfileImage(String userId, File file) async {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profileImages/$userId.jpg');
+
+      await ref.putFile(file);
+      return await ref.getDownloadURL();
+    }
+
+    Future<void> _pickProfileImage() async {
+      final user = context.read<AccountsProvider>().currentUser;
+      if (user == null) return;
+
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) return;
+
+      final file = File(picked.path);
+
+      try {
+        final url = await uploadProfileImage(user.id, file);
+
+        await context.read<AccountsProvider>().updatePhoto(url);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Profile updated")),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Failed: $e")),
+        );
+      }
+    }
     final menuItems = isOfflineMode ? offlineMenu : onlineMenu;
 
     return Scaffold(
@@ -301,6 +398,29 @@ class _AdminPageState extends State<AdminPage> {
   // LEFT SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
+
+    Future<void> _pickProfileImage() async {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) return;
+
+      final file = File(picked.path);
+      final uid = context.read<AccountsProvider>().currentUser!.id;
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profileImages/$uid.jpg');
+
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+
+      await context.read<AccountsProvider>().updatePhoto(url);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profile image updated")),
+      );
+    }
+
 
     final isAdmin = context.watch<AccountsProvider>().isAdmin;
     final syncProvider = context.watch<SyncProvider>();
@@ -325,7 +445,39 @@ class _AdminPageState extends State<AdminPage> {
                         onTap: _showNotificationPanel,
                         child: Stack(
                           children: [
-                            Icon(Icons.notifications, size: 30, color: Colors.green[800]),
+                            Consumer<NotificationProvider>(
+                              builder: (context, notifProvider, _) {
+                                final userId = context.read<AccountsProvider>().currentUser?.id;
+                                final unread = userId == null ? 0 : getUnread(notifProvider, userId);
+
+                                return Stack(
+                                  children: [
+                                    Icon(Icons.notifications, size: 30, color: Colors.green[800]),
+
+                                    if (unread > 0)
+                                      Positioned(
+                                        right: 0,
+                                        top: -2,
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.red,
+                                            borderRadius: BorderRadius.circular(10),
+                                          ),
+                                          child: Text(
+                                            unread.toString(),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                );
+                              },
+                            ),
                             // if (notificationCount > 0)
                             //   Positioned(
                             //     right: 0,
@@ -347,11 +499,28 @@ class _AdminPageState extends State<AdminPage> {
                       ),
                     ),
                   ),
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundImage: AssetImage("assets/Avatar2.jpeg"),
-                  ),
-                ],
+      Consumer<AccountsProvider>(
+        builder: (_, acc, __) {
+          final url = acc.currentUser?.photoUrl;
+
+          ImageProvider provider;
+
+          if (url != null && url.isNotEmpty && url.startsWith('http')) {
+            provider = NetworkImage(url);
+          } else {
+            provider = const AssetImage("assets/Avatar2.jpeg");
+          }
+
+          return GestureDetector(
+            onTap: _pickProfileImage,
+            child: CircleAvatar(
+              radius: 40,
+              backgroundImage: provider,
+            ),
+          );
+        },
+      ),
+      ],
               ),
               const SizedBox(height: 10),
               Consumer<AccountsProvider>(

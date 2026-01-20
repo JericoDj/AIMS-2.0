@@ -71,23 +71,61 @@ class NotificationProvider extends ChangeNotifier {
       'itemName': itemName,
       'type': type,
       'message': message,
-      'read': false,
+      'readBy': {}, // nobody yet
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
+
   // ---------------- MARK AS READ ----------------
-  Future<void> markAsRead(String notificationId) async {
+  Future<void> markAsRead(String notificationId, String userId) async {
     await _firestore
         .collection('notifications')
         .doc(notificationId)
-        .update({'read': true});
+        .set({
+      'readBy': { userId: true }
+    }, SetOptions(merge: true));
 
     final index = _notifications.indexWhere((n) => n.id == notificationId);
     if (index != -1) {
-      _notifications[index] =
-          _notifications[index].copyWith(read: true);
+      final notif = _notifications[index];
+      _notifications[index] = notif.copyWith(
+          readBy: {
+            ...?notif.readBy,
+            userId: true,
+          }
+      );
       notifyListeners();
     }
   }
+
+    Future<void> markAllAsRead(String userId) async {
+    if (_notifications.isEmpty) return;
+
+    final batch = _firestore.batch();
+
+    for (final n in _notifications) {
+      final ref = _firestore.collection('notifications').doc(n.id);
+      batch.update(ref, {
+        'readBy.$userId': true,
+      });
+
+      // update local state
+      final updated = n.copyWithReadBy({...n.readBy ?? {}, userId: true});
+      final index = _notifications.indexWhere((e) => e.id == n.id);
+      if (index != -1) _notifications[index] = updated;
+    }
+
+    await batch.commit();
+
+    notifyListeners();
+  }
+
+
+
+
+
+
+
+
 }

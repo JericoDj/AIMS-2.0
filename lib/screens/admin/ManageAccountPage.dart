@@ -25,10 +25,9 @@ class ManageAccountsPage extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 45,
-                  backgroundImage: AssetImage(
-                    // currentUser.image ??
-                        'assets/Avatar2.jpeg',
-                  ),
+                  backgroundImage: (currentUser.photoUrl != null && currentUser.photoUrl!.contains('http'))
+                      ? NetworkImage(currentUser.photoUrl!)
+                      : const AssetImage('assets/Avatar2.jpeg'),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -77,9 +76,8 @@ class ManageAccountsPage extends StatelessWidget {
                   Column(
                     children: [
                       _UserRow(
-                        image:
-                        // accounts[index].image ??
-                            'assets/Avatar2.jpeg',
+                        imageUrl: accounts[index].photoUrl,
+                        fallbackAsset: 'assets/Avatar2.jpeg',
                         name: accounts[index].fullName,
                         role: accounts[index].role.name.toUpperCase(),
                         // onEdit: () {
@@ -222,13 +220,15 @@ class ManageAccountsPage extends StatelessWidget {
 // ==================== USER ROW WIDGET ====================
 //
 class _UserRow extends StatelessWidget {
-  final String image;
+  final String? imageUrl;
+  final String fallbackAsset;
   final String name;
   final String role;
   final VoidCallback? onRemove;
 
   const _UserRow({
-    required this.image,
+    this.imageUrl,
+    required this.fallbackAsset,
     required this.name,
     required this.role,
     this.onRemove,
@@ -241,7 +241,12 @@ class _UserRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          CircleAvatar(radius: 26, backgroundImage: AssetImage(image)),
+          CircleAvatar(
+            radius: 26,
+            backgroundImage: (imageUrl != null && imageUrl!.contains('http'))
+                ? NetworkImage(imageUrl!)
+                : AssetImage(fallbackAsset),
+          ),
           const SizedBox(width: 20),
 
           Expanded(
