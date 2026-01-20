@@ -661,8 +661,9 @@ class InventoryController {
       }
 
       // ================= IGNORED TYPES =================
-      if (tx.type == TransactionType.createItem ||
-          tx.type == TransactionType.deleteItem) {
+      if (tx.type == TransactionType.createItem
+          // || tx.type == TransactionType.deleteItem
+      ) {
         debugPrint('ℹ️ Ignored tx type: ${tx.type}');
         return;
       }

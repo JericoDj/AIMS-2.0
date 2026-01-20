@@ -20,6 +20,19 @@ class StockActionDialog extends StatefulWidget {
 }
 
 class _StockActionDialogState extends State<StockActionDialog> {
+
+  bool _canSubmit() {
+    if (_selectedItem == null) return false;
+
+    if (widget.mode == StockActionMode.add && _selectedExpiry == null) {
+      return false;
+    }
+
+    final qty = int.tryParse(_qtyCtrl.text);
+    if (qty == null || qty <= 0) return false;
+
+    return true;
+  }
   final TextEditingController _scanCtrl = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
 
@@ -38,6 +51,31 @@ class _StockActionDialogState extends State<StockActionDialog> {
   List<ItemModel> _filteredItems = [];
   int _selectedIndex = 0;
   int? _hoveredIndex;
+
+
+  Future<void> _handleEnter() async {
+    if (_isSubmitting) return;
+
+    if (!_canSubmit()) {
+      // focus logic
+      if (_selectedItem == null) {
+        FocusScope.of(context).requestFocus(_scanFocus);
+        return;
+      }
+      if (widget.mode == StockActionMode.add && _selectedExpiry == null) {
+        FocusScope.of(context).requestFocus(_expiryFocus);
+        return;
+      }
+      if (_qtyCtrl.text.isEmpty) {
+        FocusScope.of(context).requestFocus(_qtyFocus);
+        return;
+      }
+      return;
+    }
+
+    await _confirmItem(_selectedItem!);
+  }
+
 
   @override
   void initState() {
@@ -138,11 +176,29 @@ class _StockActionDialogState extends State<StockActionDialog> {
   }
 
 
+
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
     if (_isSubmitting) return;
 
     setState(() => _isSubmitting = true);
+
+    if (_isSubmitting)
+      const Padding(
+        padding: EdgeInsets.only(bottom: 10),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            SizedBox(width: 10),
+            Text("Processing...")
+          ],
+        ),
+      );
 
     final inventory = InventoryController();
     final notifProvider = context.read<NotificationProvider>();
@@ -325,7 +381,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
                     if (matches.isNotEmpty) {
                       _selectItem(matches[_selectedIndex]);
                     }
-                    _scanCtrl.clear();
+                    // _scanCtrl.clear();
                   }
                 },
                 child: Align(
@@ -356,6 +412,8 @@ class _StockActionDialogState extends State<StockActionDialog> {
                   textAlignVertical: TextAlignVertical.center,
                   readOnly: true,
                   onTap: _pickExpiry,
+                  onSubmitted: (_) async => await _handleEnter(),
+
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     hintText: "Expiry Date",
@@ -373,6 +431,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
                   controller: _qtyCtrl,
                   focusNode: _qtyFocus,
                   keyboardType: TextInputType.number,
+                  onSubmitted: (_) async => await _handleEnter(),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     hintText: "Quantity",

@@ -22,6 +22,8 @@ class _LoginBasePageState extends State<LoginBasePage> {
   final TextEditingController passwordController = TextEditingController();
   bool isLoading = false;
 
+  bool _obscurePassword = true; /// <--- added for toggle
+
   @override
   void dispose() {
     emailController.dispose();
@@ -33,7 +35,6 @@ class _LoginBasePageState extends State<LoginBasePage> {
   Widget build(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
 
-    /// Detect current login route
     final currentPath = GoRouterState.of(context).uri.path;
     final bool isAdminRoute = currentPath == '/login/admin';
 
@@ -41,7 +42,6 @@ class _LoginBasePageState extends State<LoginBasePage> {
       backgroundColor: Colors.grey[900],
       body: Stack(
         children: [
-          /// BACKGROUND
           Positioned.fill(
             child: Opacity(
               opacity: 0.12,
@@ -63,7 +63,6 @@ class _LoginBasePageState extends State<LoginBasePage> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          /// LEFT BRAND
                           Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -85,7 +84,6 @@ class _LoginBasePageState extends State<LoginBasePage> {
 
                           SizedBox(width: size.width * 0.1),
 
-                          /// RIGHT FORM
                           Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
@@ -97,15 +95,19 @@ class _LoginBasePageState extends State<LoginBasePage> {
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
+
                               const SizedBox(height: 24),
 
+                              /// EMAIL
                               _input(
                                 controller: emailController,
                                 hint: "Enter Email",
                                 obscure: false,
                               ),
+
                               const SizedBox(height: 20),
 
+                              /// PASSWORD + EYE TOGGLE
                               _input(
                                 controller: passwordController,
                                 hint: "Enter Password",
@@ -114,7 +116,6 @@ class _LoginBasePageState extends State<LoginBasePage> {
 
                               const SizedBox(height: 8),
 
-                              /// FORGOT PASSWORD
                               SizedBox(
                                 width: 300,
                                 child: Align(
@@ -142,7 +143,6 @@ class _LoginBasePageState extends State<LoginBasePage> {
 
                               const SizedBox(height: 20),
 
-                              /// LOGIN BUTTON
                               SizedBox(
                                 width: 300,
                                 child: ElevatedButton(
@@ -191,30 +191,25 @@ class _LoginBasePageState extends State<LoginBasePage> {
 
                               const SizedBox(height: 24),
 
-                              /// SWITCH LOGIN TYPE
                               SizedBox(
                                 width: 300,
                                 child: isAdminRoute
                                     ? _SwitchLoginButton(
                                   label: "Login as User",
-                                  onTap: () =>
-                                      context.go('/login/user'),
+                                  onTap: () => context.go('/login/user'),
                                 )
                                     : _SwitchLoginButton(
                                   label: "Login as Admin",
-                                  onTap: () =>
-                                      context.go('/login/admin'),
+                                  onTap: () => context.go('/login/admin'),
                                 ),
                               ),
 
                               const SizedBox(height: 14),
 
-                              /// OFFLINE MODE
                               SizedBox(
                                 width: 300,
                                 child: _OfflineModeButton(
-                                  onTap: () =>
-                                      context.go('/offline'),
+                                  onTap: () => context.go('/offline'),
                                 ),
                               ),
                             ],
@@ -242,15 +237,49 @@ class _LoginBasePageState extends State<LoginBasePage> {
     required String hint,
     required bool obscure,
   }) {
+    final bool isPassword = obscure;
+
     return SizedBox(
       width: 300,
       child: TextField(
         controller: controller,
-        obscureText: obscure,
+        obscureText: isPassword ? _obscurePassword : false,
+        textInputAction: isPassword ? TextInputAction.done : TextInputAction.next,
+        onSubmitted: (value) async {
+          if (!isPassword) {
+            // Move to password input
+            FocusScope.of(context).nextFocus();
+          } else {
+            // Submit login on Enter
+            if (!isLoading) {
+              setState(() => isLoading = true);
+              try {
+                await widget.onLogin(
+                  emailController.text.trim(),
+                  passwordController.text.trim(),
+                );
+              } finally {
+                if (mounted) {
+                  setState(() => isLoading = false);
+                }
+              }
+            }
+          }
+        },
         decoration: InputDecoration(
           filled: true,
           fillColor: Colors.white.withOpacity(0.9),
           hintText: hint,
+          suffixIcon: isPassword
+              ? IconButton(
+            icon: Icon(
+              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+            ),
+            onPressed: () {
+              setState(() => _obscurePassword = !_obscurePassword);
+            },
+          )
+              : null,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
             borderSide: BorderSide.none,
@@ -259,9 +288,9 @@ class _LoginBasePageState extends State<LoginBasePage> {
       ),
     );
   }
+
 }
 
-/// SWITCH BUTTON
 class _SwitchLoginButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
@@ -291,7 +320,6 @@ class _SwitchLoginButton extends StatelessWidget {
   }
 }
 
-/// OFFLINE BUTTON
 class _OfflineModeButton extends StatelessWidget {
   final VoidCallback onTap;
 

@@ -3,7 +3,7 @@ import 'dart:ui';
 import 'dart:ui' as ui;
 import 'package:barcode_image/barcode_image.dart';
 import 'package:encrypt/encrypt.dart';
-import 'package:flutter_zxing/flutter_zxing.dart';
+
 import 'package:image/image.dart' as img;
 import 'package:qr_flutter/qr_flutter.dart';
 

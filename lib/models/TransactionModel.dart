@@ -5,7 +5,7 @@ enum TransactionType {
   addStock,
   dispense,
   createItem,
-  deleteItem,
+  // deleteItem,
 }
 
 class InventoryTransaction {

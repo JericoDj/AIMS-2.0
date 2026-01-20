@@ -1,19 +1,19 @@
 enum ItemCategory {
-  pgb,
-  dsbpgb,
-  bmcpgb,
+  PGB,
+  DSB,
+  BMC,
 
 }
 
 extension ItemCategoryX on ItemCategory {
   String get label {
     switch (this) {
-      case ItemCategory.pgb:
+      case ItemCategory.PGB:
         return 'PGB Stocks';
-      case ItemCategory.dsbpgb:
-        return 'DSB-PGB Stocks';
-      case ItemCategory.bmcpgb:
-        return 'BMC-PGB Stocks';
+      case ItemCategory.DSB:
+        return 'DSB Stocks';
+      case ItemCategory.BMC:
+        return 'BMC Stocks';
 
     }
   }

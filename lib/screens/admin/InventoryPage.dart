@@ -156,8 +156,8 @@ String _actionLabel(TransactionType type) {
       return 'Dispensed';
     case TransactionType.createItem:
       return 'Created';
-    case TransactionType.deleteItem:
-      return 'Deleted';
+    // case TransactionType.deleteItem:
+    //   return 'Deleted';
     default:
       return type.name;
   }

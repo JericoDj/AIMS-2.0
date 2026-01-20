@@ -650,7 +650,7 @@ import '../../providers/transactions_provider.dart';
     }
   }
 
-    class _TypeFilter extends StatelessWidget {
+  class _TypeFilter extends StatelessWidget {
     final TransactionType? value;
     final ValueChanged<TransactionType?> onChanged;
 
@@ -661,6 +661,15 @@ import '../../providers/transactions_provider.dart';
 
     @override
     Widget build(BuildContext context) {
+      final isAdmin = context.watch<AccountsProvider>().isAdmin;
+
+      // 👇 Filter options depending on role
+      final options = isAdmin
+          ? TransactionType.values.toList()
+          : TransactionType.values.where((t) {
+        return t == TransactionType.dispense; // or any allowed types
+      }).toList();
+
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 15),
         height: 45,
@@ -678,7 +687,7 @@ import '../../providers/transactions_provider.dart';
                 value: null,
                 child: Text("ALL"),
               ),
-              ...TransactionType.values.map((t) {
+              ...options.map((t) {
                 return DropdownMenuItem(
                   value: t,
                   child: Text(t.name.toUpperCase()),
@@ -691,6 +700,7 @@ import '../../providers/transactions_provider.dart';
       );
     }
   }
+
 
 
   class _TableHeader extends StatelessWidget {

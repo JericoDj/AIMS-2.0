@@ -32,6 +32,17 @@ class _ItemDetailsDialogState extends State<ItemDetailsDialog> {
 
   @override
   Widget build(BuildContext context) {
+
+
+    String _formatCategory(String raw) {
+      final v = raw.toLowerCase();
+
+      if (v.contains("dsb")) return "DSB";
+      if (v.contains("bmc")) return "BMC";
+      if (v.contains("pgb")) return "PGB";
+
+      return raw.toUpperCase();
+    }
     final inventoryProvider = context.read<InventoryProvider>();
     final isAdmin = context.watch<AccountsProvider>().isAdmin;
 
@@ -65,7 +76,7 @@ class _ItemDetailsDialogState extends State<ItemDetailsDialog> {
               ),
 
               const SizedBox(height: 10),
-              Text("Category: ${widget.item.category}"),
+              Text("Category: ${_formatCategory(widget.item.category)}"),
               const Divider(),
 
               // ================= STOCK SUMMARY =================

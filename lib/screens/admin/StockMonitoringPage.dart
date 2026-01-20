@@ -252,19 +252,14 @@ class _StockMonitoringPageState extends State<StockMonitoringPage> {
                   ),
                   child: Row(
                     children: const [
-                      _HeaderCell("Item", flex: 2),
-                      SizedBox(width: 10),
-                      _HeaderCell("Category", flex: 2),
-                      SizedBox(width: 10),
-                      _HeaderCell("Quantity", flex: 2),
-                      SizedBox(width: 10),
-                      _HeaderCell("Expiry", flex: 2),
-                      SizedBox(width: 10),
-                      _HeaderCell("QR Code", flex: 2),
-                      SizedBox(width: 10),
-                      _HeaderCell("Status", flex: 2),
+                      Expanded(child: _HeaderCell("Item", flex: 2)),
+                      Expanded(child: _HeaderCell("Category", flex: 2)),
+                      Expanded(child: _HeaderCell("Quantity", flex: 2)),
+                      Expanded(child: _HeaderCell("Expiry", flex: 2)),
+                      Expanded(child: _HeaderCell("QR Code", flex: 2)),
+                      Expanded(child: _HeaderCell("Status", flex: 2)),
                     ],
-                  ),
+                  )
                 ),
 
                 // BODY (Provider-powered)
@@ -406,20 +401,20 @@ class _HeaderCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      flex: flex,
+    return Center(
       child: Text(
-        textAlign: TextAlign.center,
         text,
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
           fontSize: 18,
         ),
+        textAlign: TextAlign.center,
       ),
     );
   }
 }
+
 
 //
 // ========================= STOCK ROW =========================
@@ -482,45 +477,34 @@ class StockRow extends StatelessWidget {
         color: Colors.white,
         border: Border.all(
           color: Colors.green[700]!,
-          style: BorderStyle.solid,
           width: 1.2,
         ),
       ),
       child: Row(
         children: [
           _Cell(item, flex: 2),
-
           _Cell(category, flex: 2),
-
           _Cell(qty.toString(), flex: 2),
-
           _Cell(expiry, flex: 2),
 
-          // ================= BARCODE IMAGE CELL =================
-          Expanded(
+          // ================= BARCODE CELL =================
+          _Cell(
+            null,
             flex: 2,
-            child:
-            barcodeUrl == null
+            child: barcodeUrl == null
                 ? const Icon(Icons.qr_code, color: Colors.grey)
                 : Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Small preview
                 Image.network(
                   barcodeUrl!,
                   height: 70,
                   fit: BoxFit.contain,
-                  errorBuilder:
-                      (_, __, ___) => const Icon(
-                    Icons.broken_image,
-                    color: Colors.red,
-                  ),
+                  errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.broken_image, color: Colors.red),
                 ),
-
                 const SizedBox(height: 10),
-
-                // View button
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.green[50],
@@ -531,9 +515,8 @@ class StockRow extends StatelessWidget {
                     onPressed: () {
                       showDialog(
                         context: context,
-                        builder:
-                            (_) => _BarcodeViewerDialog(
-                              name: item,
+                        builder: (_) => _BarcodeViewerDialog(
+                          name: item,
                           barcodeUrl: barcodeUrl!,
                         ),
                       );
@@ -552,67 +535,61 @@ class StockRow extends StatelessWidget {
             ),
           ),
 
-          // ================= STATUS =================
-          Align(
-            alignment: Alignment.center,
-            child: Container(
-              width: 140, // optional: keeps layout consistent
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // ================= STATUS BADGE =================
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 6,
-                      horizontal: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _statusColor().withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _statusColor()),
-                    ),
-                    child: Text(
-                      _getStatus(),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: _statusColor(),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+          // ================= STATUS CELL =================
+          _Cell(
+            null,
+            flex: 2,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 12,
                   ),
-
-                  const SizedBox(height: 6),
-
-                  // ================= DETAILS BUTTON =================
-                  TextButton.icon(
-                    icon: const Icon(
+                  decoration: BoxDecoration(
+                    color: _statusColor().withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: _statusColor()),
+                  ),
+                  child: Text(
+                    _getStatus(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: _statusColor(),
                       fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                      Icons.info_outline,
-                      size: 18,
                     ),
-                    label: Text(
-                      style: TextStyle(
-                        color: Colors.green[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-                      "Details",
-                    ),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (_) => ItemDetailsDialog(item: itemModel),
-                      );
-                    },
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 6),
+                TextButton.icon(
+                  icon: const Icon(
+                    Icons.info_outline,
+                    size: 18,
+                    color: Colors.green,
+                  ),
+                  label: Text(
+                    "Details",
+                    style: TextStyle(
+                      color: Colors.green[700],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (_) => ItemDetailsDialog(item: itemModel),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
 }
 
 class _BarcodeViewerDialog extends StatelessWidget {
@@ -780,26 +757,46 @@ class _BarcodeViewerDialog extends StatelessWidget {
 // ========================= TABLE CELL =========================
 //
 class _Cell extends StatelessWidget {
-  final String text;
+  final String? text;
   final int flex;
+  final Widget? child;
 
-  const _Cell(this.text, {required this.flex});
+  const _Cell(this.text, {required this.flex, this.child});
+
+  String _formatCategory(String input) {
+    final v = input.toLowerCase();
+
+    if (v == "pgb") return "PGB";
+    if (v == "bmcpgb") return "BMC";
+    if (v == "dsbpgb") return "DSB";
+    if (v == "bmc") return "BMC";
+    if (v == "dsb") return "DSB";
+
+    return input.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final formatted = text != null ? _formatCategory(text!) : null;
+
     return Expanded(
       flex: flex,
-      child: Text(
-        textAlign: TextAlign.center,
-        text,
-        style: TextStyle(
-          color: Colors.green[900],
-          fontSize: 17,
-          fontWeight: FontWeight.w600,
-        ),
+      child: Center(
+        child: child ??
+            Text(
+              formatted!,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.green[900],
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
       ),
     );
   }
 }
+
+
 
 

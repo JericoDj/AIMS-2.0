@@ -6,9 +6,16 @@ import 'package:provider/provider.dart';
 import '../../providers/accounts_provider.dart';
 import '../../utils/enums/role_enum.dart';
 
-class AdminLoginPage extends StatelessWidget {
+class AdminLoginPage extends StatefulWidget {
   const AdminLoginPage({super.key});
 
+  @override
+  State<AdminLoginPage> createState() => _AdminLoginPageState();
+}
+
+class _AdminLoginPageState extends State<AdminLoginPage> {
+
+  bool _obscurePassword = true;
   @override
   Widget build(BuildContext context) {
     final accountsProvider = context.read<AccountsProvider>();

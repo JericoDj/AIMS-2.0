@@ -232,25 +232,25 @@ class OfflineInventoryController {
 
 
   // ================= DELETE =================
-  Future<void> deleteItem({
-    required String itemId,
-    required String itemName,
-  }) async {
-    _items.removeWhere((i) => i.id == itemId);
-
-    await OfflineInventoryStorage.save(_items);
-
-    OfflineTransactionsProvider.instance.add(
-      InventoryTransaction(
-        id: _uuid.v4(),
-        source: TransactionSource.offline,
-        type: TransactionType.deleteItem,
-        itemId: itemId,
-        itemName: itemName,
-        timestamp: DateTime.now(),
-      ),
-    );
-  }
+  // Future<void> deleteItem({
+  //   required String itemId,
+  //   required String itemName,
+  // }) async {
+  //   _items.removeWhere((i) => i.id == itemId);
+  //
+  //   await OfflineInventoryStorage.save(_items);
+  //
+  //   OfflineTransactionsProvider.instance.add(
+  //     InventoryTransaction(
+  //       id: _uuid.v4(),
+  //       source: TransactionSource.offline,
+  //       type: TransactionType.deleteItem,
+  //       itemId: itemId,
+  //       itemName: itemName,
+  //       timestamp: DateTime.now(),
+  //     ),
+  //   );
+  // }
 
   // ================= GET =================
   List<ItemModel> getAll() => List.unmodifiable(_items);

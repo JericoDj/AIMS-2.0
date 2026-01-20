@@ -656,15 +656,33 @@ class _Cell extends StatelessWidget {
 
   const _Cell(this.text, {required this.flex});
 
+  String _formatCategory(String input) {
+    final v = input;
+
+    if (v ==("pgb")) {
+      return "PGB";
+    }
+    if (v ==("bmcpgb")) {
+      return "BMC";
+    }
+    if (v ==("dsbpgb")) {
+      return "DSB";
+    }
+
+    return v;
+  }
+
   @override
   Widget build(BuildContext context) {
+
+    final formatted = _formatCategory(text);
     final isNegative = text.startsWith('-');
 
     return Expanded(
       flex: flex,
       child: Text(
         textAlign: TextAlign.center,
-        text,
+        formatted,
         style: TextStyle(
           color: isNegative ? Colors.purple : Colors.green[900],
           fontSize: 17,
