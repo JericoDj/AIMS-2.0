@@ -459,7 +459,7 @@ class _AdminPageState extends State<AdminPage> {
                                         right: 0,
                                         top: -2,
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                                           decoration: BoxDecoration(
                                             color: Colors.red,
                                             borderRadius: BorderRadius.circular(10),
@@ -467,7 +467,7 @@ class _AdminPageState extends State<AdminPage> {
                                           child: Text(
                                             unread.toString(),
                                             style: const TextStyle(
-                                              fontSize: 11,
+                                              fontSize: 9,
                                               color: Colors.white,
                                               fontWeight: FontWeight.bold,
                                             ),
