@@ -13,64 +13,80 @@ class SyncRequestController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
 
+  Future<String?> _findItemByNameKey(String nameKey) async {
+    final snap = await _firestore
+        .collection('items')
+        .where('name_key', isEqualTo: nameKey.toLowerCase())
+        .limit(1)
+        .get();
+
+    if (snap.docs.isEmpty) return null;
+    return snap.docs.first.id;
+  }
+
 
   // ================= APPROVE =================
   Future<void> applySync(SyncRequest request) async {
-
     print('✅ Applying sync for request id: ${request.id}');
-
-
 
     final inventoryCtrl = InventoryController();
     final txCtrl = InventoryTransactionController();
+    final approverName = _accountsProvider.currentUser?.fullName ?? 'Unknown Approver';
 
-    final approverName =
-        _accountsProvider.currentUser?.fullName ?? 'Unknown Approver';
-
-    // ================= 1️⃣ ENSURE ITEMS EXIST =================
+    // ================= 1️⃣ MAP ITEMS via name_key LOOKUP =================
     final Map<String, String> itemIdMap = {};
-    print('🔄 Ensuring declarations');
+    print('🔄 Matching items using name_key');
 
     for (final item in request.inventory) {
       try {
-        final name = item['name'];
-        final category = item['category'];
-
-        if (name == null || category == null) {
+        final rawName = item['name'];
+        if (rawName == null) {
           debugPrint('⚠️ Skipping invalid item: $item');
           continue;
         }
 
-        debugPrint('🔄 Syncing item: $name');
+        final nameKey = rawName.toString().trim().toLowerCase();
+        debugPrint('🔍 lookup name_key: $nameKey');
 
-        final onlineItemId = await inventoryCtrl.syncEnsureItem(
-          name: name,
-          category: category,
-        );
+        final snap = await _firestore
+            .collection('items')
+            .where('name_key', isEqualTo: nameKey)
+            .limit(1)
+            .get();
 
-        itemIdMap[item['id']] = onlineItemId;
+        if (snap.docs.isEmpty) {
+          debugPrint('🚫 SKIP — no item match for name_key: $nameKey');
+          continue;
+        }
 
-        debugPrint('✅ Item synced: $name → $onlineItemId');
+        final foundId = snap.docs.first.id;
+        itemIdMap[item['id']] = foundId;
+
+        debugPrint('✅ Mapped name_key: $nameKey → $foundId');
       } catch (e, s) {
-        debugPrint('❌ Failed syncing item: ${item['name']}');
-        debugPrint('❌ Error: $e');
+        debugPrint('❌ lookup failed for ${item['name']}');
+        debugPrint('$e');
         debugPrintStack(stackTrace: s);
-
-        // 🚨 DO NOT STOP THE WHOLE SYNC
         continue;
       }
     }
 
-
     print('done first part');
-    // ================= 2️⃣ APPLY TRANSACTIONS SAFELY =================
+
+    // ================= 2️⃣ APPLY TRANSACTIONS =================
+    final List<String> appliedTxIds = [];
+
     for (final tx in request.transactions) {
       try {
-        debugPrint('➡️ Applying tx: ${tx['id'] ?? tx['type']}');
-
         final onlineItemId = itemIdMap[tx['itemId']];
         if (onlineItemId == null) {
-          debugPrint('⚠️ Skipped tx, itemId not mapped: ${tx['itemId']}');
+          debugPrint('⚠️ SKIP tx — no mapped item');
+          continue;
+        }
+
+        final snap = await _firestore.collection('items').doc(onlineItemId).get();
+        if (!snap.exists) {
+          debugPrint('⚠️ SKIP tx — mapped item missing in DB');
           continue;
         }
 
@@ -80,67 +96,67 @@ class SyncRequestController {
           'approvedBy': approverName,
         });
 
-        // 🔒 SAFETY CHECK
         if (mappedTx.quantity == null || mappedTx.quantity! <= 0) {
-          debugPrint('⚠️ Invalid quantity for tx ${mappedTx.id}');
+          debugPrint('⚠️ SKIP tx — invalid qty');
           continue;
         }
 
         if (mappedTx.type == TransactionType.dispense) {
-          debugPrint('🔴 Dispense ${mappedTx.quantity} of $onlineItemId');
-
           await inventoryCtrl.dispenseWithExcessHandling(
             itemId: onlineItemId,
             quantity: mappedTx.quantity!,
             userName: request.userName,
           );
         } else {
-          debugPrint('🟢 Apply tx ${mappedTx.type}');
-
-          await inventoryCtrl.applyOfflineTransaction(
-            tx: mappedTx,
-          );
+          await inventoryCtrl.applyOfflineTransaction(tx: mappedTx);
         }
 
-        debugPrint('✅ Tx applied');
+        appliedTxIds.add(tx['id']);
+        debugPrint('✅ Applied tx: ${tx['id']}');
       } catch (e, s) {
         debugPrint('❌ TX FAILED: ${tx.toString()}');
-        debugPrint('❌ Error: $e');
+        debugPrint('$e');
         debugPrintStack(stackTrace: s);
-
-        // 🚨 IMPORTANT: continue, never crash sync
         continue;
       }
     }
+
     print('done second part');
 
-    // ================= 3️⃣ LOG TRANSACTIONS =================
-    // ================= 3️⃣ LOG TRANSACTIONS =================
-    await txCtrl.syncAll(
-      request.transactions.map((tx) {
-        final onlineItemId = itemIdMap[tx['itemId']];
-        if (onlineItemId == null) return null;
+    // ================= 3️⃣ LOG SUCCESSFUL TX =================
+    final List<InventoryTransaction> successfulTx = [];
 
-        return InventoryTransaction.fromMap({
+    for (final tx in request.transactions) {
+      if (!appliedTxIds.contains(tx['id'])) continue;
+
+      final onlineItemId = itemIdMap[tx['itemId']];
+      if (onlineItemId == null) continue;
+
+      successfulTx.add(
+        InventoryTransaction.fromMap({
           ...tx,
           'itemId': onlineItemId,
           'userName': '${request.userName} (Offline Sync)',
           'approvedBy': approverName,
           'approvedAt': Timestamp.now(),
-        });
-      }).whereType<InventoryTransaction>().toList(),
-    );
+        }),
+      );
+    }
+
+    if (successfulTx.isNotEmpty) {
+      await txCtrl.syncAll(successfulTx);
+    }
 
     // ================= 4️⃣ MARK APPROVED =================
-    await _firestore
-        .collection('syncRequests')
-        .doc(request.id)
-        .update({
+    await _firestore.collection('syncRequests').doc(request.id).update({
       'status': 'approved',
       'approvedAt': Timestamp.now(),
       'approvedBy': approverName,
     });
   }
+
+
+
 
 
 

@@ -1,5 +1,9 @@
+import 'dart:io';
+
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../models/AppNotification.dart';
@@ -28,6 +32,10 @@ class UserPage extends StatefulWidget {
 
 class _UserPageState extends State<UserPage> {
   static const String _currentUserKey = 'current_user';
+
+  int getUnread(NotificationProvider p, String userId) {
+    return p.notifications.where((n) => n.readBy?[userId] != true).length;
+  }
 
   int selectedIndex = 0;
   bool isOfflineMode = false;
@@ -91,6 +99,28 @@ class _UserPageState extends State<UserPage> {
   // SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
+
+    Future<void> _pickProfileImage() async {
+      final picker = ImagePicker();
+      final picked = await picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) return;
+
+      final file = File(picked.path);
+      final uid = context.read<AccountsProvider>().currentUser!.id;
+
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('profileImages/$uid.jpg');
+
+      await ref.putFile(file);
+      final url = await ref.getDownloadURL();
+
+      await context.read<AccountsProvider>().updatePhoto(url);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Profile image updated")),
+      );
+    }
     return Container(
       width: 260,
       color: Colors.grey[100],
@@ -104,14 +134,52 @@ class _UserPageState extends State<UserPage> {
               if (!isOfflineMode)
                 Align(
                   alignment: Alignment.topRight,
-                  child: IconButton(
-                    icon: Icon(Icons.notifications, color: Colors.green[800]),
-                    onPressed: _showNotificationPanel,
+                  child: Consumer<NotificationProvider>(
+                    builder: (context, notif, _) {
+                      final userId = context.read<AccountsProvider>().currentUser?.id;
+                      final unread = (userId == null) ? 0 : getUnread(notif, userId);
+
+                      return Stack(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.notifications, color: Colors.green[800]),
+                            onPressed: _showNotificationPanel,
+                          ),
+                          if (unread > 0)
+                            Positioned(
+                              right: 6,
+                              top: 6,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.red,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  unread.toString(),
+                                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                                ),
+                              ),
+                            ),
+                        ],
+                      );
+                    },
                   ),
                 ),
-              const CircleAvatar(
-                radius: 40,
-                backgroundImage: AssetImage("assets/Avatar2.jpeg"),
+              Consumer<AccountsProvider>(
+                builder: (_, acc, __) {
+                  final url = acc.currentUser?.photoUrl;
+
+                  return GestureDetector(
+                    onTap: _pickProfileImage,
+                    child: CircleAvatar(
+                      radius: 40,
+                      backgroundImage: (url != null && url.isNotEmpty && url.startsWith('http'))
+                          ? NetworkImage(url)
+                          : const AssetImage("assets/Avatar2.jpeg") as ImageProvider,
+                    ),
+                  );
+                },
               ),
               const SizedBox(height: 10),
               Consumer<AccountsProvider>(
@@ -355,9 +423,10 @@ class _UserPageState extends State<UserPage> {
   // NOTIFICATIONS
   // -----------------------------------
   void _showNotificationPanel() {
-    // ✅ Fetch first batch (reset)
+    final userId = context.read<AccountsProvider>().currentUser?.id;
+    if (userId == null) return;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
       context.read<NotificationProvider>().fetchNotifications(refresh: true);
     });
 
@@ -373,6 +442,8 @@ class _UserPageState extends State<UserPage> {
           ),
           child: Consumer<NotificationProvider>(
             builder: (context, notifProvider, _) {
+              final unread = getUnread(notifProvider, userId);
+
               return Container(
                 width: MediaQuery.of(context).size.width * 0.30,
                 padding: const EdgeInsets.all(15),
@@ -382,107 +453,99 @@ class _UserPageState extends State<UserPage> {
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // ================= HEADER =================
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          "Notifications",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            const Text(
+                              "Notifications",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            if (unread > 0)
+                              Padding(
+                                padding: const EdgeInsets.only(left: 6),
+                                child: Text(
+                                  "($unread unread)",
+                                  style: TextStyle(
+                                    color: Colors.red[700],
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
-                        GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: const Icon(Icons.close, size: 22),
-                        ),
+                        Row(
+                          children: [
+                            if (unread > 0)
+                              TextButton(
+                                onPressed: () {
+                                  context.read<NotificationProvider>().markAllAsRead(userId);
+                                },
+                                child: const Text("Mark all as read"),
+                              ),
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        )
                       ],
                     ),
-
-                    const SizedBox(height: 12),
-
-                    // ================= BODY =================
+                    const SizedBox(height: 10),
                     if (notifProvider.notifications.isEmpty && !notifProvider.loading)
                       const Padding(
                         padding: EdgeInsets.all(20),
-                        child: Center(child: Text("No notifications available.")),
+                        child: Text("No notifications available."),
                       )
                     else
                       SizedBox(
-                        height: MediaQuery.of(context).size.height * 0.55, // 🔑 scroll area
+                        height: MediaQuery.of(context).size.height * 0.55,
                         child: SingleChildScrollView(
                           child: Column(
-                            children: [
-                              // ================= LIST =================
-                              ...notifProvider.notifications.map((n) {
-                                return Column(
-                                  children: [
-                                    ListTile(
-                                      leading: Icon(
-                                        n.read
-                                            ? Icons.notifications_none
-                                            : Icons.notifications_active,
-                                        color: n.read ? Colors.grey : Colors.green,
-                                      ),
-                                      title: Text(
-                                        n.title,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      subtitle: Text(n.message),
-                                      trailing: Text(
-                                        _formatTime(n.createdAt),
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      onTap: () {
-                                        context
-                                            .read<NotificationProvider>()
-                                            .markAsRead(n.id);
+                            children: notifProvider.notifications.map((n) {
+                              final isRead = (n.readBy?[userId] == true);
 
-                                        Navigator.pop(context);
-                                        _handleNotificationNavigation(n);
-                                      },
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    leading: Icon(
+                                      isRead ? Icons.notifications_none : Icons.notifications_active,
+                                      color: isRead ? Colors.grey : Colors.green,
                                     ),
-                                    const Divider(height: 6),
-                                  ],
-                                );
-                              }),
-
-                              // ================= READ MORE =================
-                              if (notifProvider.hasMore)
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 10),
-                                  child: TextButton(
-                                    onPressed: notifProvider.loading
-                                        ? null
-                                        : () {
-                                      context
-                                          .read<NotificationProvider>()
-                                          .fetchNotifications();
+                                    title: Text(n.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    subtitle: Text(n.message),
+                                    trailing: Text(_formatTime(n.createdAt), style: const TextStyle(fontSize: 11)),
+                                    onTap: () {
+                                      context.read<NotificationProvider>().markAsRead(n.id, userId);
+                                      Navigator.pop(context);
+                                      _handleNotificationNavigation(n);
                                     },
-                                    child: notifProvider.loading
-                                        ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                        : const Text(
-                                      "Read more",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                                   ),
-                                ),
-                            ],
+                                  const Divider(height: 6),
+                                ],
+                              );
+                            }).toList(),
                           ),
                         ),
+                      ),
+                    if (notifProvider.hasMore)
+                      TextButton(
+                        onPressed: notifProvider.loading ? null : () {
+                          context.read<NotificationProvider>().fetchNotifications();
+                        },
+                        child: notifProvider.loading
+                            ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                            : const Text("Read more"),
                       ),
                   ],
                 ),
