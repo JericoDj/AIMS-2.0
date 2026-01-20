@@ -690,7 +690,7 @@ import '../../providers/transactions_provider.dart';
               ...options.map((t) {
                 return DropdownMenuItem(
                   value: t,
-                  child: Text(t.name.toUpperCase()),
+                  child: Text(t.label),
                 );
               }),
             ],

@@ -8,6 +8,20 @@ enum TransactionType {
   // deleteItem,
 }
 
+extension TransactionTypeX on TransactionType {
+  String get label {
+    switch (this) {
+      case TransactionType.addStock:
+        return "ADD STOCK";
+      case TransactionType.createItem:
+        return "CREATE ITEM";
+      case TransactionType.dispense:
+        return "DISPENSE";
+    }
+  }
+}
+
+
 class InventoryTransaction {
   final String id;
   final TransactionType type;

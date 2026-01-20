@@ -33,7 +33,7 @@ class TransactionRow extends StatelessWidget {
           ),
           _CellText(tx.itemName, flex: 3),
           _CellText(tx.quantity?.toString() ?? '-', flex: 2),
-          _CellText(tx.type.name.toUpperCase(), flex: 2),
+          _CellText(tx.type.label, flex: 2),
           _CellText(tx.userName ?? 'System', flex: 2),
 
           Expanded(
