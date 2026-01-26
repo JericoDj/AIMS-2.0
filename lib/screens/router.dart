@@ -29,10 +29,10 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
 
       // ================= NOT LOGGED IN =================
       if (!isLoggedIn) {
-        if (location == '/' || location.startsWith('/login')) {
+        if (location == '/login/admin' || location.startsWith('/login')) {
           return null;
         }
-        return '/';
+        return '/login/admin';
       }
 
       // ================= ADMIN =================

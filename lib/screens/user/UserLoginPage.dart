@@ -46,7 +46,7 @@ class UserLoginPage extends StatelessWidget {
             throw Exception("Not authorized as user");
           }
 
-          /// 4️⃣ Save session
+          /// 4️⃣ Save session (provider)
           await accountsProvider.loginWithEmail(
             email: email,
             password: password,
@@ -54,11 +54,46 @@ class UserLoginPage extends StatelessWidget {
 
           /// 5️⃣ Navigate AFTER success
           context.go('/user');
-        } catch (e) {
-          _showError(context, e.toString());
+        }
+
+        // 🔐 AUTH-SPECIFIC ERRORS
+        on FirebaseAuthException catch (e) {
+          switch (e.code) {
+            case 'user-not-found':
+              _showError(context, 'Account does not exist');
+              break;
+
+            case 'wrong-password':
+              _showError(context, 'Wrong password');
+              break;
+
+            case 'invalid-email':
+              _showError(context, 'Invalid email address');
+              break;
+
+            case 'user-disabled':
+              _showError(context, 'This account has been disabled');
+              break;
+
+            case 'too-many-requests':
+              _showError(context, 'Too many attempts. Try again later.');
+              break;
+
+            default:
+              _showError(context, 'Login failed. Please try again.');
+          }
+        }
+
+        // ❗ LOGIC / ROLE ERRORS
+        catch (e) {
+          _showError(
+            context,
+            e.toString().replaceAll('Exception: ', ''),
+          );
         }
       },
     );
+
   }
 
   void _showError(BuildContext context, String message) {

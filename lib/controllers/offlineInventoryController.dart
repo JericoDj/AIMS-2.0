@@ -34,10 +34,13 @@ class OfflineInventoryController {
     for (final item in loaded) {
       final path = item.barcodeImageUrl;
 
+      // ✅ ALWAYS REGENERATE USING ITEM NAME (ONLINE COMPATIBLE)
       if (path == null || path.isEmpty) {
         debugPrint('🔧 Missing QR for ${item.name}, regenerating...');
         item.barcodeImageUrl =
-        await OfflineQrUtil.generateAndSaveQr(itemId: item.id);
+        await OfflineQrUtil.generateAndSaveQr(
+          payload: item.name,
+        );
         continue;
       }
 
@@ -45,7 +48,9 @@ class OfflineInventoryController {
       if (!file.existsSync()) {
         debugPrint('🔧 QR file missing for ${item.name}, regenerating...');
         item.barcodeImageUrl =
-        await OfflineQrUtil.generateAndSaveQr(itemId: item.id);
+        await OfflineQrUtil.generateAndSaveQr(
+          payload: item.name,
+        );
       }
     }
 
@@ -67,19 +72,19 @@ class OfflineInventoryController {
   }) async {
     debugPrint('🧾 [OFFLINE] Creating item: $name');
 
-    final itemId = _uuid.v4();
+    final itemId = _uuid.v4(); // internal offline ID ONLY
 
-    // ✅ Generate offline QR (SAME payload as online)
+    // ✅ QR payload MUST MATCH ONLINE → ITEM NAME
     final qrPath = await OfflineQrUtil.generateAndSaveQr(
-      itemId: itemId,
+      payload: name,
     );
 
     final item = ItemModel(
-      id: itemId,
+      id: itemId,                 // internal reference
       name: name,
       category: category,
-      barcode: itemId,               // payload
-      barcodeImageUrl: qrPath,        // local file path
+      barcode: name,              // ✅ SAME AS ONLINE
+      barcodeImageUrl: qrPath,
       nameNormalized: normalizeItemName(name),
       batches: [],
     );
@@ -120,7 +125,6 @@ class OfflineInventoryController {
 
     for (final batch in item.batches) {
       if (!merged && batch.expiry.isAtSameMomentAs(expiry)) {
-        // 🔁 Replace matching batch
         updatedBatches.add(
           StockBatch(
             quantity: batch.quantity + quantity,
@@ -133,7 +137,6 @@ class OfflineInventoryController {
       }
     }
 
-    // ➕ No existing batch → add new
     if (!merged) {
       updatedBatches.add(
         StockBatch(
@@ -143,14 +146,12 @@ class OfflineInventoryController {
       );
     }
 
-    // 🔄 Replace item batches atomically
     item.batches
       ..clear()
       ..addAll(updatedBatches);
 
     await OfflineInventoryStorage.save(_items);
 
-    // 🧾 Log transaction
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(
         id: _uuid.v4(),
@@ -165,7 +166,6 @@ class OfflineInventoryController {
     );
   }
 
-
   // ================= DISPENSE FIFO =================
   Future<void> dispenseStock({
     required String itemId,
@@ -173,7 +173,6 @@ class OfflineInventoryController {
   }) async {
     final item = _items.firstWhere((i) => i.id == itemId);
 
-    // FIFO
     final sorted = [...item.batches]
       ..sort((a, b) => a.expiry.compareTo(b.expiry));
 
@@ -188,7 +187,6 @@ class OfflineInventoryController {
 
       if (batch.quantity <= remaining) {
         remaining -= batch.quantity;
-        // fully consumed → do not add
       } else {
         updatedBatches.add(
           StockBatch(
@@ -200,8 +198,6 @@ class OfflineInventoryController {
       }
     }
 
-
-    // ✅ TRACK EXCESS (OFFLINE ONLY)
     if (remaining > 0) {
       item.excessUsage += remaining;
       debugPrint(
@@ -215,7 +211,6 @@ class OfflineInventoryController {
 
     await OfflineInventoryStorage.save(_items);
 
-    // 🧾 Log transaction (POSITIVE quantity)
     OfflineTransactionsProvider.instance.add(
       InventoryTransaction(
         id: _uuid.v4(),
@@ -229,9 +224,14 @@ class OfflineInventoryController {
     );
   }
 
+  // ================= GET =================
+  List<ItemModel> getAll() => List.unmodifiable(_items);
+}
 
 
-  // ================= DELETE =================
+
+
+// ================= DELETE =================
   // Future<void> deleteItem({
   //   required String itemId,
   //   required String itemName,
@@ -252,6 +252,3 @@ class OfflineInventoryController {
   //   );
   // }
 
-  // ================= GET =================
-  List<ItemModel> getAll() => List.unmodifiable(_items);
-}

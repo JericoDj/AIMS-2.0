@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/TransactionModel.dart';
 import '../../providers/transactions_provider.dart';
+import '../../providers/accounts_provider.dart';
 import '../../utils/enums/stock_actions_enum.dart';
 import 'DashboardPage.dart';
 import 'dialogs/StockActionDialog.dart';
@@ -17,46 +18,63 @@ class InventoryPage extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // ---------------- TOP ROW ----------------
-        Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          InventoryButton(
-            icon: Icons.search,
-            label: "View Stock",
-            onTap: () {
-              _openStockDialog(context, StockActionMode.view);
-            },
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              InventoryButton(
+                icon: Icons.search,
+                label: "View Stock",
+                onTap: () {
+                  _openStockDialog(context, StockActionMode.view);
+                },
+              ),
+
+              const SizedBox(width: 40),
+
+              InventoryButton(
+                icon: Icons.add,
+                label: "Add Stock",
+                onTap: () {
+                  _openStockDialog(context, StockActionMode.add);
+                },
+              ),
+
+              const SizedBox(width: 40),
+
+              InventoryButton(
+                icon: Icons.remove_circle_outline,
+                label: "Dispense Stock",
+                onTap: () {
+                  _openStockDialog(context, StockActionMode.dispense);
+                },
+              ),
+
+              // ---------------- DELETE BUTTON (ADMIN ONLY) ----------------
+              Consumer<AccountsProvider>(
+                builder: (context, auth, _) {
+                  if (!auth.isAdmin) return const SizedBox.shrink();
+
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 40),
+                    child: InventoryButton(
+                      icon: Icons.delete_forever,
+                      label: "Delete Item",
+                      // Red warning color
+                      color: Colors.red[50],
+                      iconColor: Colors.red[600],
+                      borderColor: Colors.red[600],
+                      onTap: () {
+                        _openStockDialog(context, StockActionMode.delete);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ],
           ),
 
-          const SizedBox(width: 40),
-
-          InventoryButton(
-            icon: Icons.add,
-            label: "Add Stock",
-            onTap: () {
-              _openStockDialog(context, StockActionMode.add);
-            },
-          ),
-
-          const SizedBox(width: 40),
-
-          InventoryButton(
-            icon: Icons.remove_circle_outline,
-            label: "Dispense Stock",
-            onTap: () {
-              _openStockDialog(context, StockActionMode.dispense);
-            },
-          ),
-        ],
-      ),
-
-
-        // ---------------- BOTTOM ROW ----------------
-
-
-          SizedBox(
-            height:  MediaQuery.sizeOf(context).height * 0.05,
-          ),
+          // ---------------- BOTTOM ROW ----------------
+          SizedBox(height: MediaQuery.sizeOf(context).height * 0.05),
 
           SizedBox(
             height: MediaQuery.sizeOf(context).height * 0.55,
@@ -68,9 +86,7 @@ class InventoryPage extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.all(25),
                     decoration: BoxDecoration(
-                      border: Border.all(
-                          width: 4,
-                          color: Colors.green[400]!),
+                      border: Border.all(width: 4, color: Colors.green[400]!),
 
                       color: const Color(0xFFFFFFFF),
                       borderRadius: BorderRadius.circular(25),
@@ -94,13 +110,15 @@ class InventoryPage extends StatelessWidget {
                               return StreamBuilder<List<InventoryTransaction>>(
                                 stream: provider.watchLatest(limit: 5),
                                 builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) {
+                                  if (snapshot.connectionState ==
+                                      ConnectionState.waiting) {
                                     return const Center(
                                       child: CircularProgressIndicator(),
                                     );
                                   }
 
-                                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                  if (!snapshot.hasData ||
+                                      snapshot.data!.isEmpty) {
                                     return const Center(
                                       child: Text(
                                         "No recent transactions",
@@ -129,7 +147,6 @@ class InventoryPage extends StatelessWidget {
                             },
                           ),
                         ),
-
                       ],
                     ),
                   ),
@@ -140,13 +157,10 @@ class InventoryPage extends StatelessWidget {
             ),
           ),
         ],
-
-
       ),
     );
   }
 }
-
 
 String _actionLabel(TransactionType type) {
   switch (type) {
@@ -156,13 +170,13 @@ String _actionLabel(TransactionType type) {
       return 'Dispensed';
     case TransactionType.createItem:
       return 'Created';
-    // case TransactionType.deleteItem:
-    //   return 'Deleted';
-    default:
-      return type.name;
+    case TransactionType.deleteItem:
+      return 'Deleted';
+    // default not needed if we cover all cases, but if type is dynamic or external, safe to keep.
+    // Lint said default is covered by previous cases? Wait, if enum has 4 values and I used 4 cases, then default is redundant.
   }
+  return type.name;
 }
-
 
 void _openStockDialog(BuildContext context, StockActionMode mode) {
   showDialog(
@@ -171,6 +185,7 @@ void _openStockDialog(BuildContext context, StockActionMode mode) {
     builder: (_) => StockActionDialog(mode: mode),
   );
 }
+
 //
 // ---------------- REUSABLE BUTTON WIDGET ----------------
 //
@@ -178,12 +193,18 @@ class InventoryButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
+  final Color? color;
+  final Color? iconColor;
+  final Color? borderColor;
 
   const InventoryButton({
     super.key,
     required this.icon,
     required this.label,
     this.onTap,
+    this.color,
+    this.iconColor,
+    this.borderColor,
   });
 
   @override
@@ -191,36 +212,32 @@ class InventoryButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap ?? () {},
       child: Container(
-
         width: 210,
         height: 140,
         decoration: BoxDecoration(
-
-
           border: Border.all(
             width: 3,
-            color: Colors.green[600]!,
+            color: borderColor ?? Colors.green[600]!,
           ),
-          color: Colors.green[50], // Light green like sample
+          color: color ?? Colors.green[50],
           borderRadius: BorderRadius.circular(25),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 55,
-              color: Colors.green[600],
-            ),
+            Icon(icon, size: 55, color: iconColor ?? Colors.green[600]),
             const SizedBox(height: 12),
             Text(
               label,
               style: TextStyle(
-                color: Colors.green[700],
+                color:
+                    iconColor != null
+                        ? (iconColor!.withOpacity(0.8))
+                        : Colors.green[700],
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
               ),
-            )
+            ),
           ],
         ),
       ),

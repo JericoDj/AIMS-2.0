@@ -62,7 +62,20 @@ class _UserPageState extends State<UserPage> {
       isOfflineMode = true;
       selectedIndex = 0;
     }
+
+    // 🔔 START NOTIFICATION STREAM
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotificationProvider>().startListening();
+    });
   }
+
+  @override
+  void dispose() {
+    context.read<NotificationProvider>().stopListening();
+    super.dispose();
+  }
+
 
   // ---------------- USER MENUS ----------------
   final onlineMenu = [
@@ -427,7 +440,7 @@ class _UserPageState extends State<UserPage> {
     if (userId == null) return;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<NotificationProvider>().fetchNotifications(refresh: true);
+
     });
 
     showDialog(
@@ -498,10 +511,13 @@ class _UserPageState extends State<UserPage> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    if (notifProvider.notifications.isEmpty && !notifProvider.loading)
+
+                    if (notifProvider.notifications.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(20),
-                        child: Text("No notifications available."),
+                        child: Center(
+                          child: Text("No notifications available."),
+                        ),
                       )
                     else
                       SizedBox(
@@ -515,14 +531,25 @@ class _UserPageState extends State<UserPage> {
                                 children: [
                                   ListTile(
                                     leading: Icon(
-                                      isRead ? Icons.notifications_none : Icons.notifications_active,
+                                      isRead
+                                          ? Icons.notifications_none
+                                          : Icons.notifications_active,
                                       color: isRead ? Colors.grey : Colors.green,
                                     ),
-                                    title: Text(n.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                    title: Text(
+                                      n.title,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
                                     subtitle: Text(n.message),
-                                    trailing: Text(_formatTime(n.createdAt), style: const TextStyle(fontSize: 11)),
+                                    trailing: Text(
+                                      _formatTime(n.createdAt),
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
                                     onTap: () {
-                                      context.read<NotificationProvider>().markAsRead(n.id, userId);
+                                      context
+                                          .read<NotificationProvider>()
+                                          .markAsRead(n.id, userId);
+
                                       Navigator.pop(context);
                                       _handleNotificationNavigation(n);
                                     },
@@ -533,20 +560,9 @@ class _UserPageState extends State<UserPage> {
                             }).toList(),
                           ),
                         ),
-                      ),
-                    if (notifProvider.hasMore)
-                      TextButton(
-                        onPressed: notifProvider.loading ? null : () {
-                          context.read<NotificationProvider>().fetchNotifications();
-                        },
-                        child: notifProvider.loading
-                            ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                            : const Text("Read more"),
-                      ),
+                      )
+
+
                   ],
                 ),
               );

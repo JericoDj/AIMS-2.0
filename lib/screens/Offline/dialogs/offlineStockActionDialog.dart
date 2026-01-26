@@ -10,21 +10,16 @@ import '../../../utils/enums/stock_actions_enum.dart';
 class OfflineStockActionDialog extends StatefulWidget {
   final StockActionMode mode;
 
-  const OfflineStockActionDialog({
-    super.key,
-    required this.mode,
-  });
+  const OfflineStockActionDialog({super.key, required this.mode});
 
   @override
   State<OfflineStockActionDialog> createState() =>
       _OfflineStockActionDialogState();
 }
 
-class _OfflineStockActionDialogState
-    extends State<OfflineStockActionDialog> {
+class _OfflineStockActionDialogState extends State<OfflineStockActionDialog> {
   final TextEditingController _scanCtrl = TextEditingController();
   final TextEditingController _qtyCtrl = TextEditingController();
-
 
   final TextEditingController _expiryCtrl = TextEditingController();
   final FocusNode _expiryFocus = FocusNode();
@@ -39,8 +34,7 @@ class _OfflineStockActionDialogState
   int _selectedIndex = 0;
   int? _hoveredIndex;
 
-  final OfflineInventoryController _inventory =
-  OfflineInventoryController();
+  final OfflineInventoryController _inventory = OfflineInventoryController();
 
   @override
   void initState() {
@@ -67,6 +61,10 @@ class _OfflineStockActionDialogState
         return "Add Stock";
       case StockActionMode.dispense:
         return "Dispense Stock";
+      case StockActionMode.delete:
+        return "Delete Stock";
+      default:
+        throw UnimplementedError();
     }
   }
 
@@ -75,12 +73,12 @@ class _OfflineStockActionDialogState
     final query = value.trim();
     if (query.isEmpty) return [];
 
-    final items =
-        context.read<OfflineInventoryProvider>().items;
+    final items = context.read<OfflineInventoryProvider>().items;
 
-    final matches = items.where((item) {
-      return item.name.toLowerCase().contains(query.toLowerCase());
-    }).toList();
+    final matches =
+        items.where((item) {
+          return item.name.toLowerCase().contains(query.toLowerCase());
+        }).toList();
 
     setState(() {
       _filteredItems = matches;
@@ -129,10 +127,15 @@ class _OfflineStockActionDialogState
     }
 
     if (widget.mode == StockActionMode.dispense) {
-      await _inventory.dispenseStock(
-        itemId: item.id,
-        quantity: qty,
+      await _inventory.dispenseStock(itemId: item.id, quantity: qty);
+    }
+
+    if (widget.mode == StockActionMode.delete) {
+      // Offline delete not implemented yet
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Offline deletion not supported yet")),
       );
+      return;
     }
 
     context.read<OfflineInventoryProvider>().reload();
@@ -142,8 +145,7 @@ class _OfflineStockActionDialogState
   void _selectItem(ItemModel item) {
     _selectedItem = item;
 
-    if (widget.mode != StockActionMode.view &&
-        _qtyCtrl.text.isEmpty) {
+    if (widget.mode != StockActionMode.view && _qtyCtrl.text.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         FocusScope.of(context).requestFocus(_qtyFocus);
       });
@@ -155,10 +157,11 @@ class _OfflineStockActionDialogState
   void _showItemDetails(ItemModel item) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(item.name),
-        content: Text("Total Stock: ${item.totalStock}"),
-      ),
+      builder:
+          (_) => AlertDialog(
+            title: Text(item.name),
+            content: Text("Total Stock: ${item.totalStock}"),
+          ),
     );
   }
 
@@ -236,7 +239,6 @@ class _OfflineStockActionDialogState
               ),
             ),
 
-
             // ================= EXPIRY =================
             if (widget.mode == StockActionMode.add) ...[
               const SizedBox(height: 12),
@@ -267,7 +269,6 @@ class _OfflineStockActionDialogState
               ),
             ],
 
-
             const SizedBox(height: 12),
 
             // ================= QTY =================
@@ -276,10 +277,8 @@ class _OfflineStockActionDialogState
                 focusNode: FocusNode(),
                 onKey: (event) {
                   if (event is RawKeyDownEvent &&
-                      (event.logicalKey ==
-                          LogicalKeyboardKey.enter ||
-                          event.logicalKey ==
-                              LogicalKeyboardKey.numpadEnter)) {
+                      (event.logicalKey == LogicalKeyboardKey.enter ||
+                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
                     if (_selectedItem == null) return;
 
                     _confirmItem(_selectedItem!);
@@ -289,9 +288,7 @@ class _OfflineStockActionDialogState
                   controller: _qtyCtrl,
                   focusNode: _qtyFocus,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: "Quantity",
-                  ),
+                  decoration: const InputDecoration(labelText: "Quantity"),
                 ),
               ),
 
@@ -300,52 +297,49 @@ class _OfflineStockActionDialogState
             // ================= ITEM LIST =================
             SizedBox(
               height: 200,
-              child: _filteredItems.isEmpty
-                  ? const Center(
-                child: Text(
-                  "No items found",
-                  style: TextStyle(color: Colors.grey),
-                ),
-              )
-                  : MouseRegion(
-                onExit: (_) {
-                  setState(() => _hoveredIndex = null);
-                },
-                child: ListView.builder(
-                  itemCount: _filteredItems.length,
-                  itemBuilder: (_, index) {
-                    final item = _filteredItems[index];
+              child:
+                  _filteredItems.isEmpty
+                      ? const Center(
+                        child: Text(
+                          "No items found",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      )
+                      : MouseRegion(
+                        onExit: (_) {
+                          setState(() => _hoveredIndex = null);
+                        },
+                        child: ListView.builder(
+                          itemCount: _filteredItems.length,
+                          itemBuilder: (_, index) {
+                            final item = _filteredItems[index];
 
-                    final isHovered =
-                        _hoveredIndex == index;
-                    final isSelected =
-                        _hoveredIndex == null &&
-                            index == _selectedIndex;
+                            final isHovered = _hoveredIndex == index;
+                            final isSelected =
+                                _hoveredIndex == null &&
+                                index == _selectedIndex;
 
-                    return MouseRegion(
-                      onEnter: (_) {
-                        setState(
-                                () => _hoveredIndex = index);
-                      },
-                      child: Container(
-                        color: isHovered
-                            ? Colors.green
-                            .withOpacity(0.25)
-                            : isSelected
-                            ? Colors.green
-                            .withOpacity(0.15)
-                            : null,
-                        child: ListTile(
-                          title: Text(item.name),
-                          subtitle: Text(
-                              "Stock: ${item.totalStock}"),
-                          onTap: () => _selectItem(item),
+                            return MouseRegion(
+                              onEnter: (_) {
+                                setState(() => _hoveredIndex = index);
+                              },
+                              child: Container(
+                                color:
+                                    isHovered
+                                        ? Colors.green.withOpacity(0.25)
+                                        : isSelected
+                                        ? Colors.green.withOpacity(0.15)
+                                        : null,
+                                child: ListTile(
+                                  title: Text(item.name),
+                                  subtitle: Text("Stock: ${item.totalStock}"),
+                                  onTap: () => _selectItem(item),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    );
-                  },
-                ),
-              ),
             ),
 
             const SizedBox(height: 12),

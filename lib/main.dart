@@ -14,6 +14,7 @@ import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
+import 'package:window_manager/window_manager.dart';
 
 import 'firebase_options.dart';
 Future<void> main() async {
@@ -23,14 +24,34 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
-  // ✅ Windows-safe directory
+
+  // 🔐 INIT WINDOW MANAGER
+  await windowManager.ensureInitialized();
+
+  windowManager.waitUntilReadyToShow(
+    const WindowOptions(
+      minimumSize: Size(1024, 768),
+      center: true,
+      titleBarStyle: TitleBarStyle.normal,
+    ),
+        () async {
+      await windowManager.show();
+      await windowManager.focus();
+
+      // ✅ 100% width & height of screen
+      await windowManager.maximize();
+    },
+  );
+
+
+  // Windows-safe directory
   final supportDir = await getApplicationSupportDirectory();
   if (!await supportDir.exists()) {
     await supportDir.create(recursive: true);
   }
 
   // =====================================================
-  // 🔐 GETSTORAGE INITIALIZATION (CORRECT & ORDERED)
+  // GETSTORAGE INITIALIZATION (CORRECT & ORDERED)
   // =====================================================
 
   // 1️⃣ Initialize default container (required internally)
@@ -71,7 +92,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AccountsProvider()),
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
-        // ✅ CORRECT WAY
+
         ChangeNotifierProxyProvider<AccountsProvider, TransactionsProvider>(
           create: (context) =>
               TransactionsProvider(context.read<AccountsProvider>()),

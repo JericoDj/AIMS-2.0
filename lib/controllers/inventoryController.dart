@@ -4,7 +4,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 
-
 import '../models/AccountModel.dart';
 import '../models/BarcodePngResult.dart';
 import '../models/SyncRequestModel.dart';
@@ -39,17 +38,17 @@ class InventoryController {
       final String itemName = data['name'] ?? '';
 
       final List<Map<String, dynamic>> batches =
-      List<Map<String, dynamic>>.from(data['batches'] ?? []);
+          List<Map<String, dynamic>>.from(data['batches'] ?? []);
 
       // 🔁 Sort FIFO by expiry (safe — local copy)
       batches.sort(
-            (a, b) =>
+        (a, b) =>
             DateTime.parse(a['expiry']).compareTo(DateTime.parse(b['expiry'])),
       );
 
       int available = batches.fold(
         0,
-            (sum, b) => sum + (b['quantity'] as num).toInt(),
+        (sum, b) => sum + (b['quantity'] as num).toInt(),
       );
 
       final int toConsume = quantity > available ? available : quantity;
@@ -72,10 +71,7 @@ class InventoryController {
           remaining -= q;
           // batch fully consumed → skip
         } else {
-          updatedBatches.add({
-            ...b,
-            'quantity': q - remaining,
-          });
+          updatedBatches.add({...b, 'quantity': q - remaining});
           remaining = 0;
         }
       }
@@ -87,8 +83,7 @@ class InventoryController {
       };
 
       if (excess > 0) {
-        updatePayload['excessUsage'] =
-            (data['excessUsage'] ?? 0) + excess;
+        updatePayload['excessUsage'] = (data['excessUsage'] ?? 0) + excess;
       }
 
       // ✅ SINGLE UPDATE — WINDOWS SAFE
@@ -103,8 +98,6 @@ class InventoryController {
     }
   }
 
-
-
   // ================= CREATE =================
   Future<String> createItem({
     required String name,
@@ -116,8 +109,7 @@ class InventoryController {
     // ============================
     // 1️⃣ Create Firestore item
     // ============================
-    final DocumentReference docRef =
-    await _firestore.collection('items').add({
+    final DocumentReference docRef = await _firestore.collection('items').add({
       'name': name,
       'name_key': normalizeItemName(name),
       'category': category,
@@ -134,14 +126,12 @@ class InventoryController {
     // ============================
     // 2️⃣ Generate QR CODE
     // ============================
-    final Uint8List qrPngBytes =
-    await BarcodeController.generateQrPng(name);
+    final Uint8List qrPngBytes = await BarcodeController.generateQrPng(name);
 
     // ============================
     // 3️⃣ Upload barcode to Storage
     // ============================
-    final Reference barcodeRef =
-    _storage.ref('items/$itemId/barcode.png');
+    final Reference barcodeRef = _storage.ref('items/$itemId/barcode.png');
 
     await barcodeRef.putData(
       qrPngBytes,
@@ -154,12 +144,9 @@ class InventoryController {
     // ============================
     // 4️⃣ Save barcode image URL
     // ============================
-    final String barcodeImageUrl =
-    await barcodeRef.getDownloadURL();
+    final String barcodeImageUrl = await barcodeRef.getDownloadURL();
 
-    await docRef.update({
-      'barcode_image_url': barcodeImageUrl,
-    });
+    await docRef.update({'barcode_image_url': barcodeImageUrl});
 
     // ============================
     // 5️⃣ Log inventory transaction (SAFE)
@@ -170,7 +157,7 @@ class InventoryController {
           type: TransactionType.createItem,
           itemId: itemId,
           itemName: name,
-          user:user,
+          user: user,
         );
       } catch (e) {
         debugPrint('⚠️ Log failed: $e');
@@ -179,8 +166,6 @@ class InventoryController {
 
     return itemId;
   }
-
-
 
   // ================= CREATE =================
   Future<String> createItemNoLogs({
@@ -201,8 +186,7 @@ class InventoryController {
     final itemId = docRef.id;
 
     try {
-      final Uint8List qrPngBytes =
-      await BarcodeController.generateQrPng(name);
+      final Uint8List qrPngBytes = await BarcodeController.generateQrPng(name);
 
       final barcodeRef = _storage.ref('items/$itemId/barcode.png');
 
@@ -213,9 +197,7 @@ class InventoryController {
 
       final barcodeImageUrl = await barcodeRef.getDownloadURL();
 
-      await docRef.update({
-        'barcode_image_url': barcodeImageUrl,
-      });
+      await docRef.update({'barcode_image_url': barcodeImageUrl});
     } catch (e, s) {
       debugPrint('⚠️ Barcode generation/upload failed: $e');
       debugPrintStack(stackTrace: s);
@@ -225,16 +207,13 @@ class InventoryController {
     return itemId;
   }
 
-
-
-
-
   Future<bool> itemNameExists(String name) async {
-    final snapshot = await _firestore
-        .collection('items')
-        .where('name_key', isEqualTo: normalizeItemName(name))
-        .limit(1)
-        .get();
+    final snapshot =
+        await _firestore
+            .collection('items')
+            .where('name_key', isEqualTo: normalizeItemName(name))
+            .limit(1)
+            .get();
 
     debugPrint('🔍 itemNameExists("${name.toLowerCase()}")');
     debugPrint('📦 docs length: ${snapshot.docs.length}');
@@ -245,10 +224,6 @@ class InventoryController {
 
     return snapshot.docs.isNotEmpty;
   }
-
-
-
-
 
   // ================= ADD STOCK (STACK BY EXPIRY) =================
   Future<void> addStock({
@@ -274,9 +249,9 @@ class InventoryController {
       final int oldMaxStock = (data['maxStock'] ?? 0) as int;
 
       final List<Map<String, dynamic>> batches =
-      List<Map<String, dynamic>>.from(
-        (data['batches'] ?? []).map((e) => Map<String, dynamic>.from(e)),
-      );
+          List<Map<String, dynamic>>.from(
+            (data['batches'] ?? []).map((e) => Map<String, dynamic>.from(e)),
+          );
 
       int remainingQty = quantity;
       int newExcessUsage = excessUsage;
@@ -297,18 +272,17 @@ class InventoryController {
           batches[index]['quantity'] =
               (batches[index]['quantity'] as num).toInt() + remainingQty;
         } else {
-          batches.add({
-            'quantity': remainingQty,
-            'expiry': expiryKey,
-          });
+          batches.add({'quantity': remainingQty, 'expiry': expiryKey});
         }
       }
 
-      final int totalStock =
-      batches.fold(0, (sum, b) => sum + (b['quantity'] as num).toInt());
+      final int totalStock = batches.fold(
+        0,
+        (sum, b) => sum + (b['quantity'] as num).toInt(),
+      );
 
       final int newMaxStock =
-      totalStock > oldMaxStock ? totalStock : oldMaxStock;
+          totalStock > oldMaxStock ? totalStock : oldMaxStock;
 
       final int autoThreshold = (newMaxStock * 0.5).round();
 
@@ -346,12 +320,6 @@ class InventoryController {
     }
   }
 
-
-
-
-
-
-
   Future<void> addStockNoLogs({
     required String itemId,
     required int quantity,
@@ -368,7 +336,7 @@ class InventoryController {
       final int oldMaxStock = (data['maxStock'] ?? 0) as int;
 
       final List<Map<String, dynamic>> batches =
-      List<Map<String, dynamic>>.from(data['batches'] ?? []);
+          List<Map<String, dynamic>>.from(data['batches'] ?? []);
 
       int remainingQty = quantity;
       int newExcessUsage = excessUsage;
@@ -389,21 +357,20 @@ class InventoryController {
           batches[index] = {
             ...batches[index],
             'quantity':
-            (batches[index]['quantity'] as num).toInt() + remainingQty,
+                (batches[index]['quantity'] as num).toInt() + remainingQty,
           };
         } else {
-          batches.add({
-            'quantity': remainingQty,
-            'expiry': expiryKey,
-          });
+          batches.add({'quantity': remainingQty, 'expiry': expiryKey});
         }
       }
 
-      final int totalStock =
-      batches.fold(0, (sum, b) => sum + (b['quantity'] as num).toInt());
+      final int totalStock = batches.fold(
+        0,
+        (sum, b) => sum + (b['quantity'] as num).toInt(),
+      );
 
       final int newMaxStock =
-      totalStock > oldMaxStock ? totalStock : oldMaxStock;
+          totalStock > oldMaxStock ? totalStock : oldMaxStock;
 
       final int autoThreshold = (newMaxStock * 0.5).round();
 
@@ -416,19 +383,12 @@ class InventoryController {
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
-
-
       debugPrint('✅ addStockNoLogs success');
     } catch (e, s) {
       debugPrint('❌ addStockNoLogs FAILED: $e');
       debugPrintStack(stackTrace: s);
     }
   }
-
-
-
-
-
 
   // ================= DISPENSE STOCK (FIFO, SAFE) =================
   Future<void> dispenseStock({
@@ -449,12 +409,13 @@ class InventoryController {
       final data = snap.data()!;
       final String itemName = data['name'] ?? '';
 
-      List<Map<String, dynamic>> batches =
-      List<Map<String, dynamic>>.from(data['batches'] ?? []);
+      List<Map<String, dynamic>> batches = List<Map<String, dynamic>>.from(
+        data['batches'] ?? [],
+      );
 
       // FIFO by expiry
       batches.sort(
-            (a, b) =>
+        (a, b) =>
             DateTime.parse(a['expiry']).compareTo(DateTime.parse(b['expiry'])),
       );
 
@@ -474,9 +435,7 @@ class InventoryController {
       }
 
       // Remove empty batches
-      batches.removeWhere(
-            (b) => (b['quantity'] as num).toInt() == 0,
-      );
+      batches.removeWhere((b) => (b['quantity'] as num).toInt() == 0);
 
       final Map<String, dynamic> updateData = {
         'batches': batches,
@@ -485,8 +444,7 @@ class InventoryController {
 
       // 🔴 record debt if overdraft
       if (remaining > 0) {
-        updateData['excessUsage'] =
-            FieldValue.increment(remaining);
+        updateData['excessUsage'] = FieldValue.increment(remaining);
       }
 
       await ref.update(updateData);
@@ -495,16 +453,18 @@ class InventoryController {
 
       // 🔒 async-safe logging
       Future.microtask(() {
-        InventoryTransactionController().log(
-          type: TransactionType.dispense,
-          itemId: itemId,
-          itemName: itemName,
-          quantity: quantity,
-          source: 'ONLINE',
-          user: user,
-        ).catchError((e) {
-          debugPrint('⚠️ dispense log failed: $e');
-        });
+        InventoryTransactionController()
+            .log(
+              type: TransactionType.dispense,
+              itemId: itemId,
+              itemName: itemName,
+              quantity: quantity,
+              source: 'ONLINE',
+              user: user,
+            )
+            .catchError((e) {
+              debugPrint('⚠️ dispense log failed: $e');
+            });
       });
 
       debugPrint('🔴 [dispenseStock] END');
@@ -514,10 +474,6 @@ class InventoryController {
       rethrow;
     }
   }
-
-
-
-
 
   Future<void> dispenseStockNoLogs({
     required String itemId,
@@ -529,12 +485,13 @@ class InventoryController {
     if (!snap.exists) return;
 
     final data = snap.data()!;
-    List<Map<String, dynamic>> batches =
-    List<Map<String, dynamic>>.from(data['batches'] ?? []);
+    List<Map<String, dynamic>> batches = List<Map<String, dynamic>>.from(
+      data['batches'] ?? [],
+    );
 
     // FIFO by expiry
     batches.sort(
-          (a, b) =>
+      (a, b) =>
           DateTime.parse(a['expiry']).compareTo(DateTime.parse(b['expiry'])),
     );
 
@@ -554,9 +511,7 @@ class InventoryController {
     }
 
     // Remove empty batches
-    batches.removeWhere(
-          (b) => (b['quantity'] as num).toInt() == 0,
-    );
+    batches.removeWhere((b) => (b['quantity'] as num).toInt() == 0);
 
     final Map<String, dynamic> updateData = {
       'batches': batches,
@@ -565,42 +520,92 @@ class InventoryController {
 
     // 🔴 Record debt if overdraft
     if (remaining > 0) {
-      updateData['excessUsage'] =
-          FieldValue.increment(remaining);
+      updateData['excessUsage'] = FieldValue.increment(remaining);
     }
 
     await ref.update(updateData);
+  }
+
+  // ================= DELETE ITEM =================
+  Future<void> deleteItem({
+    required String itemId,
+    required String itemName,
+    required Account? user,
+  }) async {
+    debugPrint('🗑️ [deleteItem] Deleting $itemName ($itemId)');
+
+    final ref = _firestore.collection('items').doc(itemId);
+
+    try {
+      final snap = await ref.get();
+      if (!snap.exists) return;
+
+      final data = snap.data()!;
+      final List batches = data['batches'] ?? [];
+
+      final int totalStock = batches.fold<int>(
+        0,
+            (sum, b) => sum + ((b['quantity'] ?? 0) as num).toInt(),
+      );
+
+      // ✅ LOG DELETE (MUST AWAIT)
+      await InventoryTransactionController().log(
+        type: TransactionType.deleteItem,
+        itemId: itemId,
+        itemName: itemName,
+        quantity: totalStock,
+        user: user,
+      );
+
+      // 🔔 NOTIFICATION
+      await createNotification(
+        itemId: itemId,
+        itemName: itemName,
+        type: 'ITEM_DELETED',
+        message: 'Item "$itemName" deleted (qty: $totalStock)',
+      );
+
+      // 🗑 DELETE ITEM
+      await ref.delete();
+
+      // 🧹 DELETE BARCODE
+      try {
+        await _storage.ref('items/$itemId/barcode.png').delete();
+      } catch (_) {}
+
+      debugPrint('✅ [deleteItem] Deleted with qty=$totalStock');
+    } catch (e, s) {
+      debugPrint('❌ [deleteItem] FAILED: $e');
+      debugPrintStack(stackTrace: s);
+      rethrow;
+    }
   }
 
 
   Future<String?> findItemIdByName(String name) async {
     final key = normalizeItemName(name);
 
-    final snap = await _firestore
-        .collection('items')
-        .where('name_key', isEqualTo: key)
-        .limit(1)
-        .get();
+    final snap =
+        await _firestore
+            .collection('items')
+            .where('name_key', isEqualTo: key)
+            .limit(1)
+            .get();
 
     if (snap.docs.isEmpty) return null;
     return snap.docs.first.id;
   }
 
-
   Future<String> syncEnsureItem({
     required String name,
     required String category,
   }) async {
-
     print('syncEnsureItem: $name in $category');
     final existingId = await findItemIdByName(name);
     if (existingId != null) return existingId;
 
     // Create item ONLY if missing
-    return await createItemNoLogs(
-      name: name,
-      category: category,
-    );
+    return await createItemNoLogs(name: name, category: category);
   }
 
   Future<void> applyOfflineTransaction({
@@ -625,7 +630,6 @@ class InventoryController {
           expiry: tx.expiry!,
         );
 
-
         await createNotification(
           itemId: tx.itemId,
           itemName: tx.itemName,
@@ -644,10 +648,7 @@ class InventoryController {
           return;
         }
 
-        await dispenseStockNoLogs(
-          itemId: tx.itemId,
-          quantity: tx.quantity!,
-        );
+        await dispenseStockNoLogs(itemId: tx.itemId, quantity: tx.quantity!);
 
         await createNotification(
           itemId: tx.itemId,
@@ -662,7 +663,7 @@ class InventoryController {
 
       // ================= IGNORED TYPES =================
       if (tx.type == TransactionType.createItem
-          // || tx.type == TransactionType.deleteItem
+      // || tx.type == TransactionType.deleteItem
       ) {
         debugPrint('ℹ️ Ignored tx type: ${tx.type}');
         return;
@@ -676,7 +677,6 @@ class InventoryController {
       // 🚨 DO NOT rethrow — sync must continue
     }
   }
-
 
   Future<void> createNotification({
     required String itemId,
@@ -694,18 +694,7 @@ class InventoryController {
     });
   }
 
-
-
-
-
-
-
-
-
-
-
-
-// ================= FIFO TRANSACTION =================
+  // ================= FIFO TRANSACTION =================
   // Future<void> transactStockFIFO({
   //   required String itemId,
   //   required int quantity,
@@ -771,5 +760,4 @@ class InventoryController {
   //     user: user,
   //   );
   // }
-
 }

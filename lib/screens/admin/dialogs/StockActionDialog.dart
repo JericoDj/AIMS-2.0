@@ -24,8 +24,15 @@ class _StockActionDialogState extends State<StockActionDialog> {
   bool _canSubmit() {
     if (_selectedItem == null) return false;
 
+    // ADD requires expiry
     if (widget.mode == StockActionMode.add && _selectedExpiry == null) {
       return false;
+    }
+
+    // DELETE & VIEW do NOT require quantity
+    if (widget.mode == StockActionMode.delete ||
+        widget.mode == StockActionMode.view) {
+      return true;
     }
 
     final qty = int.tryParse(_qtyCtrl.text);
@@ -33,6 +40,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
     return true;
   }
+
   final TextEditingController _scanCtrl = TextEditingController();
   final FocusNode _scanFocus = FocusNode();
 
@@ -57,24 +65,30 @@ class _StockActionDialogState extends State<StockActionDialog> {
     if (_isSubmitting) return;
 
     if (!_canSubmit()) {
-      // focus logic
       if (_selectedItem == null) {
         FocusScope.of(context).requestFocus(_scanFocus);
         return;
       }
+
       if (widget.mode == StockActionMode.add && _selectedExpiry == null) {
         FocusScope.of(context).requestFocus(_expiryFocus);
         return;
       }
-      if (_qtyCtrl.text.isEmpty) {
+
+      // ❌ DO NOT ask for qty in DELETE / VIEW
+      if (widget.mode != StockActionMode.delete &&
+          widget.mode != StockActionMode.view &&
+          _qtyCtrl.text.isEmpty) {
         FocusScope.of(context).requestFocus(_qtyFocus);
         return;
       }
+
       return;
     }
 
     await _confirmItem(_selectedItem!);
   }
+
 
 
   @override
@@ -102,6 +116,10 @@ class _StockActionDialogState extends State<StockActionDialog> {
         return "Add Stock";
       case StockActionMode.dispense:
         return "Dispense Stock";
+      case StockActionMode.delete:
+        return "Delete Stock";
+      default:
+        throw UnimplementedError();
     }
   }
 
@@ -183,32 +201,30 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
     setState(() => _isSubmitting = true);
 
-    if (_isSubmitting)
-      const Padding(
-        padding: EdgeInsets.only(bottom: 10),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: 22,
-              height: 22,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            SizedBox(width: 10),
-            Text("Processing...")
-          ],
-        ),
-      );
-
     final inventory = InventoryController();
     final notifProvider = context.read<NotificationProvider>();
     final inventoryProvider = context.read<InventoryProvider>();
-    final user = context.read<AccountsProvider>().currentUser; // ✅ FIX
+    final user = context.read<AccountsProvider>().currentUser;
 
     try {
-      // ================= VIEW MODE =================
+      // ================= VIEW =================
       if (widget.mode == StockActionMode.view) {
         _showItemDetails(item);
+        return;
+      }
+
+      // ================= DELETE (FULL ITEM) =================
+      if (widget.mode == StockActionMode.delete) {
+        await inventory.deleteItem(
+          itemId: item.id,
+          itemName: item.name,
+
+          user: user,
+        );
+
+        await inventoryProvider.fetchItems(refresh: true);
+
+        if (mounted) Navigator.pop(context);
         return;
       }
 
@@ -217,7 +233,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
         throw Exception('Invalid quantity');
       }
 
-      // ================= ADD STOCK =================
+      // ================= ADD =================
       if (widget.mode == StockActionMode.add) {
         if (_selectedExpiry == null) {
           throw Exception('Expiry date required');
@@ -227,7 +243,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
           itemId: item.id,
           quantity: qty,
           expiry: _selectedExpiry!,
-          user: user, // ✅ explicit user
+          user: user,
         );
 
         await notifProvider.createNotification(
@@ -236,16 +252,14 @@ class _StockActionDialogState extends State<StockActionDialog> {
           type: 'STOCK_ADDED',
           message: 'Added $qty pcs to ${item.name}',
         );
-
-        await inventoryProvider.fetchItems(refresh: true);
       }
 
-      // ================= DISPENSE STOCK =================
+      // ================= DISPENSE =================
       if (widget.mode == StockActionMode.dispense) {
         await inventory.dispenseStock(
           itemId: item.id,
           quantity: qty,
-          user: user, // ✅ explicit user
+          user: user,
         );
 
         await notifProvider.createNotification(
@@ -255,29 +269,26 @@ class _StockActionDialogState extends State<StockActionDialog> {
           message: 'Dispensed $qty pcs from ${item.name}',
         );
 
-        await inventoryProvider.fetchItems(refresh: true);
         await inventoryProvider.checkAndSendStockNotifications(
           notifProvider,
         );
       }
 
+      await inventoryProvider.fetchItems(refresh: true);
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      debugPrint('❌ Confirm action failed: $e');
+      debugPrint('❌ StockAction failed: $e');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Something went wrong. Please try again.'),
-          ),
+          const SnackBar(content: Text('Action failed')),
         );
       }
     } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
+
 
 
 
@@ -307,7 +318,15 @@ class _StockActionDialogState extends State<StockActionDialog> {
   void _selectItem(ItemModel item) {
     _selectedItem = item;
 
-    if (widget.mode != StockActionMode.view && _qtyCtrl.text.isEmpty) {
+    // DELETE & VIEW → confirm immediately
+    if (widget.mode == StockActionMode.delete ||
+        widget.mode == StockActionMode.view) {
+      _confirmItem(item);
+      return;
+    }
+
+    // ADD / DISPENSE → focus qty
+    if (_qtyCtrl.text.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         FocusScope.of(context).requestFocus(_qtyFocus);
       });
@@ -424,7 +443,8 @@ class _StockActionDialogState extends State<StockActionDialog> {
             ],
 
             // ================= QTY =================
-            if (widget.mode != StockActionMode.view) ...[
+            if (widget.mode != StockActionMode.view &&
+                widget.mode != StockActionMode.delete) ...[
               const SizedBox(height: 12),
               _styledField(
                 child: TextField(

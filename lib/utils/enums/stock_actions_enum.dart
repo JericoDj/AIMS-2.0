@@ -1,5 +1,1 @@
-enum StockActionMode {
-  view,
-  add,
-  dispense,
-}
+enum StockActionMode { view, add, dispense, delete }

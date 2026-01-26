@@ -90,7 +90,7 @@ class _AdminPageState extends State<AdminPage> {
     // fetch first batch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<NotificationProvider>().fetchNotifications(refresh: true);
+
     });
 
     final userId = context.read<AccountsProvider>().currentUser?.id;
@@ -172,88 +172,57 @@ class _AdminPageState extends State<AdminPage> {
                     const SizedBox(height: 12),
 
                     // ---------------- BODY ----------------
-                    if (notifProvider.notifications.isEmpty &&
-                        !notifProvider.loading)
+
+                    if (notifProvider.notifications.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(20),
-                        child: Center(child: Text("No notifications available.")),
+                        child: Center(
+                          child: Text("No notifications available."),
+                        ),
                       )
                     else
                       SizedBox(
                         height: MediaQuery.of(context).size.height * 0.55,
                         child: SingleChildScrollView(
                           child: Column(
-                            children: [
-                              ...notifProvider.notifications.map((n) {
-                                final isRead = (n.readBy?[userId] == true);
+                            children: notifProvider.notifications.map((n) {
+                              final isRead = (n.readBy?[userId] == true);
 
-                                return Column(
-                                  children: [
-                                    ListTile(
-                                      leading: Icon(
-                                        isRead
-                                            ? Icons.notifications_none
-                                            : Icons.notifications_active,
-                                        color:
-                                        isRead ? Colors.grey : Colors.green,
-                                      ),
-                                      title: Text(
-                                        n.title,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      subtitle: Text(n.message),
-                                      trailing: Text(
-                                        _formatTime(n.createdAt),
-                                        style: const TextStyle(fontSize: 11),
-                                      ),
-                                      onTap: () {
-                                        context
-                                            .read<NotificationProvider>()
-                                            .markAsRead(n.id, userId);
-
-                                        Navigator.pop(context);
-                                        _handleNotificationNavigation(n);
-                                      },
+                              return Column(
+                                children: [
+                                  ListTile(
+                                    leading: Icon(
+                                      isRead
+                                          ? Icons.notifications_none
+                                          : Icons.notifications_active,
+                                      color: isRead ? Colors.grey : Colors.green,
                                     ),
-                                    const Divider(height: 6),
-                                  ],
-                                );
-                              }),
-
-                              if (notifProvider.hasMore)
-                                Padding(
-                                  padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
-                                  child: TextButton(
-                                    onPressed: notifProvider.loading
-                                        ? null
-                                        : () {
+                                    title: Text(
+                                      n.title,
+                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                    ),
+                                    subtitle: Text(n.message),
+                                    trailing: Text(
+                                      _formatTime(n.createdAt),
+                                      style: const TextStyle(fontSize: 11),
+                                    ),
+                                    onTap: () {
                                       context
                                           .read<NotificationProvider>()
-                                          .fetchNotifications();
+                                          .markAsRead(n.id, userId);
+
+                                      Navigator.pop(context);
+                                      _handleNotificationNavigation(n);
                                     },
-                                    child: notifProvider.loading
-                                        ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                      ),
-                                    )
-                                        : const Text(
-                                      "Read more",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
                                   ),
-                                ),
-                            ],
+                                  const Divider(height: 6),
+                                ],
+                              );
+                            }).toList(),
                           ),
                         ),
-                      ),
+                      )
+
                   ],
                 ),
               );
@@ -319,8 +288,13 @@ class _AdminPageState extends State<AdminPage> {
       isOfflineMode = true;
       selectedIndex = 0;
     }
-  }
 
+    // 🔔 START NOTIFICATION STREAM (ONCE)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotificationProvider>().startListening();
+    });
+  }
 
   // ------------------- ONLINE MENU -------------------
   final onlineMenu = [

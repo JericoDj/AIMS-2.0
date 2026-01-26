@@ -115,6 +115,22 @@ import '../../providers/transactions_provider.dart';
       );
     }
 
+    String _txLabel(TransactionType type) {
+      switch (type) {
+        case TransactionType.addStock:
+          return 'ADD ITEM';
+        case TransactionType.dispense:
+          return 'DISPENSE';
+        case TransactionType.deleteItem:
+          return 'DELETE ITEM';
+        case TransactionType.createItem:
+          return 'CREATE ITEM';
+        default:
+          return type.name.toUpperCase();
+      }
+    }
+
+
 
     void showDeleteTransactionDialog(
         BuildContext context,
@@ -239,6 +255,7 @@ import '../../providers/transactions_provider.dart';
       // ================= GROUP TOTALS =================
       final Map<String, int> totalAdded = {};
       final Map<String, int> totalDispensed = {};
+      final Map<String, int> totalDeleted = {};
 
       for (final tx in transactions) {
         final item = tx.itemName;
@@ -246,10 +263,16 @@ import '../../providers/transactions_provider.dart';
 
         if (tx.type == TransactionType.addStock) {
           totalAdded[item] = (totalAdded[item] ?? 0) + qty;
-        } else if (tx.type == TransactionType.dispense) {
+        }
+        else if (tx.type == TransactionType.dispense) {
           totalDispensed[item] = (totalDispensed[item] ?? 0) + qty;
         }
+        else if (tx.type == TransactionType.deleteItem) {
+          // ✅ TOTAL STOCK DELETED
+          totalDeleted[item] = (totalDeleted[item] ?? 0) + qty;
+        }
       }
+
 
       final font = await PdfGoogleFonts.robotoRegular();
       final boldFont = await PdfGoogleFonts.robotoBold();
@@ -305,7 +328,7 @@ import '../../providers/transactions_provider.dart';
                   dateFormat.format(tx.timestamp),
                   tx.itemName,
                   tx.quantity?.toString() ?? '-',
-                  tx.type.name.toUpperCase(),
+                  _txLabel(tx.type),
                   tx.userName ?? 'System',
                 ];
               }).toList(),
@@ -327,12 +350,14 @@ import '../../providers/transactions_provider.dart';
                 'Item',
                 'Total Added',
                 'Total Dispensed',
+                'Total Deleted',
               ],
               data: totalAdded.keys.map((item) {
                 return [
                   item,
                   totalAdded[item]?.toString() ?? '0',
                   totalDispensed[item]?.toString() ?? '0',
+                  totalDeleted[item]?.toString() ?? '0',
                 ];
               }).toList(),
             ),

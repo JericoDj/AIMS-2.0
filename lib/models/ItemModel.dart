@@ -6,6 +6,7 @@ class ItemModel {
   final String name;
   final String category;
   final String? barcode;
+  final String? quantity;
   String? barcodeImageUrl;
   final String? nameNormalized;
 
@@ -27,6 +28,7 @@ class ItemModel {
     required this.id,
     required this.name,
     required this.category,
+    this.quantity,
     this.barcode,
     this.barcodeImageUrl,
     this.nameNormalized,

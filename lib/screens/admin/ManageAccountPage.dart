@@ -186,19 +186,26 @@ class ManageAccountsPage extends StatelessWidget {
             TextButton(
               onPressed: () async {
                 try {
-                  if (account.role.name.toLowerCase() == "admin") {
-                    await provider.reauthenticateAdmin(passwordCtrl.text);
+                  await provider.removeAccount(
+                    account.id,
+                    adminPassword: passwordCtrl.text.isEmpty
+                        ? null
+                        : passwordCtrl.text,
+                  );
+
+                  if (context.mounted) {
+                    Navigator.pop(context);
                   }
-
-                  await provider.removeAccount(account.id,
-                    adminPassword: passwordCtrl.text,
-                  );
-
-                  Navigator.pop(context);
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(e.toString())),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          e.toString().replaceAll('Exception: ', ''),
+                        ),
+                      ),
+                    );
+                  }
                 }
               },
               child: const Text(
@@ -206,6 +213,7 @@ class ManageAccountsPage extends StatelessWidget {
                 style: TextStyle(color: Colors.red),
               ),
             ),
+
           ],
         );
       },
@@ -245,7 +253,7 @@ class _UserRow extends StatelessWidget {
             radius: 26,
             backgroundImage: (imageUrl != null && imageUrl!.contains('http'))
                 ? NetworkImage(imageUrl!)
-                : AssetImage(fallbackAsset),
+                : const AssetImage('assets/Avatar2.jpeg') as ImageProvider,
           ),
           const SizedBox(width: 20),
 

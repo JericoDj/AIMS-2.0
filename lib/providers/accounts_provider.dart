@@ -3,12 +3,14 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/AccountModel.dart';
+import '../screens/user/StorageKeys.dart';
 import '../utils/enums/role_enum.dart';
 
 class AccountsProvider extends ChangeNotifier {
@@ -159,17 +161,15 @@ class AccountsProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    print("trying to login");
+    // ================= AUTH =================
     final credential = await _auth.signInWithEmailAndPassword(
       email: email,
       password: password,
     );
 
-
-    print(credential);
     final uid = credential.user!.uid;
 
-
+    // ================= FETCH PROFILE =================
     final doc = await _firestore.collection('users').doc(uid).get();
 
     if (!doc.exists) {
@@ -181,17 +181,31 @@ class AccountsProvider extends ChangeNotifier {
       'id': doc.id, // ✅ REQUIRED
     });
 
+    // ================= UPDATE MEMORY =================
     _currentUser = account;
-    _saveCurrentUser(account);
+
+    // ================= SAVE TO GETSTORAGE =================
+    final box = GetStorage('current_user');
+    box.write(
+      StorageKeys.currentUser,
+      account.toMap(), // 👈 FULL PROFILE SAVED
+    );
+
     notifyListeners();
   }
 
 
   void logout() {
+    // 🔥 Clear in-memory session
     _currentUser = null;
-    _clearCurrentUser();
+
+    // 🔥 Clear persistent session
+    final box = GetStorage('current_user');
+    box.remove(StorageKeys.currentUser);
+
     notifyListeners();
   }
+
 
   // ================= CREATE ACCOUNT =================
   Future<void> createAccount({
@@ -213,32 +227,51 @@ class AccountsProvider extends ChangeNotifier {
       }
     }
 
-    // ================= CREATE AUTH USER =================
-    final credential = await _auth.createUserWithEmailAndPassword(
-      email: email,
-      password: password,
+    // =====================================================
+    // ✅ CREATE USER WITHOUT LOGGING OUT ADMIN
+    // =====================================================
+
+    // 🔐 Create secondary Firebase app
+    final secondaryApp = await Firebase.initializeApp(
+      name: 'SecondaryAuth',
+      options: Firebase.app().options,
     );
 
-    final uid = credential.user!.uid;
+    final secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
 
-    final account = Account(
-      id: uid,
-      fullName: fullName,
-      email: email,
-      role: role,
-      photoUrl: null,
-      createdAt: DateTime.now(),
-    );
+    try {
+      // 🔥 Create auth user (DOES NOT AFFECT MAIN SESSION)
+      final credential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
 
-    // ================= SAVE TO FIRESTORE =================
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .set(account.toMap());
+      final uid = credential.user!.uid;
 
-    // ================= UPDATE LOCAL STATE =================
-    _accounts.add(account);
-    notifyListeners();
+      final account = Account(
+        id: uid,
+        fullName: fullName,
+        email: email,
+        role: role,
+        photoUrl: null, // default avatar
+        createdAt: DateTime.now(),
+      );
+
+      // ================= SAVE TO FIRESTORE =================
+      await _firestore
+          .collection('users')
+          .doc(uid)
+          .set(account.toMap());
+
+      // ================= UPDATE LOCAL STATE =================
+      _accounts.add(account);
+      notifyListeners();
+
+    } finally {
+      // 🧹 CLEANUP (VERY IMPORTANT)
+      await secondaryAuth.signOut();
+      await secondaryApp.delete();
+    }
   }
 
 
@@ -251,19 +284,24 @@ class AccountsProvider extends ChangeNotifier {
 
   Future<void> removeAccount(
       String id, {
-        String? adminPassword, // required only when deleting admin
+        String? adminPassword, // kept only for UI confirmation
       }) async {
+    // 🔐 LOAD CURRENT USER FROM GETSTORAGE
+    final currentUser = _getCurrentUserFromStorage();
+
+    if (currentUser.role != UserRole.admin) {
+      throw Exception("Only admins can remove accounts");
+    }
+
+    if (currentUser.id == id) {
+      throw Exception("You cannot remove your own account");
+    }
+
     final target = _accounts.firstWhere(
           (a) => a.id == id,
       orElse: () => throw Exception("Account not found"),
     );
 
-    // ❌ Cannot delete yourself
-    if (_currentUser?.id == id) {
-      throw Exception("You cannot remove your own account");
-    }
-
-    // ❌ Prevent deleting last admin
     final adminCount =
         _accounts.where((a) => a.role == UserRole.admin).length;
 
@@ -271,54 +309,55 @@ class AccountsProvider extends ChangeNotifier {
       throw Exception("Cannot remove the last admin account");
     }
 
-    // 🔐 Require reauthentication when deleting admin
-    if (target.role == UserRole.admin) {
-      if (adminPassword == null || adminPassword.isEmpty) {
-        throw Exception("Admin password is required");
-      }
-
-      await reauthenticateAdmin(adminPassword);
+    final adminUser = FirebaseAuth.instance.currentUser;
+    if (adminUser == null) {
+      throw Exception("Authentication expired. Please log in again.");
     }
 
-    // ================================
-    // 🔐 GET FIREBASE ID TOKEN
-    // ================================
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      throw Exception("Not authenticated");
-    }
+    // ✅ DO NOT FORCE REFRESH
+    final idToken = await adminUser.getIdToken();
 
-    final idToken = await user.getIdToken();
-
-    // ================================
-    // 🔥 DELETE USER (AUTH + FIRESTORE)
-    // ================================
     final response = await http.post(
-      Uri.parse(
-        "https://deleteuseraccount-tekpv2phba-uc.a.run.app",
-      ),
+      Uri.parse("https://deleteuseraccount-tekpv2phba-uc.a.run.app"),
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer $idToken",
       },
-      body: jsonEncode({
-        "uid": id,
-      }),
+      body: jsonEncode({ "uid": id }),
     );
 
     if (response.statusCode != 200) {
-      throw Exception(
-        "Failed to delete user: ${response.body}",
-      );
+      throw Exception("Failed to delete user: ${response.body}");
     }
 
-    // ================================
-    // 🧹 UPDATE LOCAL STATE
-    // ================================
     _accounts.removeWhere((a) => a.id == id);
-
     notifyListeners();
   }
+
+
+
+
+  Account _getCurrentUserFromStorage() {
+    final box = GetStorage('current_user');
+    final stored = box.read(StorageKeys.currentUser);
+
+    debugPrint('🧪 RAW STORED USER: $stored');
+
+    if (stored == null || stored is! Map) {
+      throw Exception("Session expired. Please log in again.");
+    }
+
+    final user = Account.fromMap(
+      Map<String, dynamic>.from(stored),
+    );
+
+    debugPrint('🧪 PARSED USER ID: ${user.id}');
+    debugPrint('🧪 PARSED USER ROLE: ${user.role}');
+    debugPrint('🧪 ROLE TYPE: ${user.role.runtimeType}');
+
+    return user;
+  }
+
 
 
 

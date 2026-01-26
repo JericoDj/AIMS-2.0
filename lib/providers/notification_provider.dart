@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
@@ -6,60 +8,85 @@ class NotificationProvider extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final List<AppNotification> _notifications = [];
-
-  bool _loading = false;
-  bool _hasMore = true;
-
-  DocumentSnapshot? _lastDoc;
-
-  static const int _pageSize = 5;
-
-  // ---------------- GETTERS ----------------
   List<AppNotification> get notifications => _notifications;
-  bool get loading => _loading;
-  bool get hasMore => _hasMore;
 
-  // ---------------- INITIAL FETCH ----------------
-  Future<void> fetchNotifications({bool refresh = false}) async {
-    if (_loading) return;
+  int _limit = 10; // ✅ start small
+  bool _listening = false;
+  StreamSubscription<QuerySnapshot>? _subscription;
 
-    if (refresh) {
-      _notifications.clear();
-      _lastDoc = null;
-      _hasMore = true;
-      notifyListeners();
-    }
+  // ================= START REALTIME LISTENER =================
+  void startListening() {
+    if (_listening) return;
+    _listening = true;
 
-    if (!_hasMore) return;
+    _attachStream();
+  }
 
-    _loading = true;
-    notifyListeners();
+  void _attachStream() {
+    _subscription?.cancel();
 
-    Query query = _firestore
+    _subscription = _firestore
         .collection('notifications')
         .orderBy('createdAt', descending: true)
-        .limit(_pageSize);
+        .limit(_limit)
+        .snapshots()
+        .listen((snapshot) {
+      _notifications
+        ..clear()
+        ..addAll(
+          snapshot.docs
+              .where((e) => e['createdAt'] != null)
+              .map((e) => AppNotification.fromFirestore(e)),
+        );
 
-    if (_lastDoc != null) {
-      query = query.startAfterDocument(_lastDoc!);
-    }
+      notifyListeners();
+    }, onError: (e) {
+      debugPrint('❌ Notification stream error: $e');
+    });
+  }
 
-    final snap = await query.get();
+  // ================= LOAD MORE =================
+  void loadMore() {
+    _limit += 10;
+    _attachStream(); // 🔁 reattach stream with higher limit
+  }
 
-    if (snap.docs.isEmpty) {
-      _hasMore = false;
-    } else {
-      _lastDoc = snap.docs.last;
-      _notifications.addAll(
-        snap.docs.map((e) => AppNotification.fromFirestore(e)),
+  // ================= STOP LISTENER =================
+  void stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
+    _listening = false;
+  }
+
+  // ================= MARK AS READ =================
+  Future<void> markAsRead(String notificationId, String userId) async {
+    await _firestore
+        .collection('notifications')
+        .doc(notificationId)
+        .update({
+      'readBy.$userId': true,
+    });
+  }
+
+  // ================= MARK ALL AS READ =================
+  Future<void> markAllAsRead(String userId) async {
+    if (_notifications.isEmpty) return;
+
+    final batch = _firestore.batch();
+
+    for (final n in _notifications) {
+      batch.update(
+        _firestore.collection('notifications').doc(n.id),
+        {'readBy.$userId': true},
       );
     }
 
-    _loading = false;
-    notifyListeners();
+    await batch.commit();
   }
 
-  // ---------------- CREATE ----------------
+
+
+// ================= CREATE =================
   Future<void> createNotification({
     required String itemId,
     required String itemName,
@@ -71,61 +98,16 @@ class NotificationProvider extends ChangeNotifier {
       'itemName': itemName,
       'type': type,
       'message': message,
-      'readBy': {}, // nobody yet
+      'readBy': {},
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
-
-
-  // ---------------- MARK AS READ ----------------
-  Future<void> markAsRead(String notificationId, String userId) async {
-    await _firestore
-        .collection('notifications')
-        .doc(notificationId)
-        .set({
-      'readBy': { userId: true }
-    }, SetOptions(merge: true));
-
-    final index = _notifications.indexWhere((n) => n.id == notificationId);
-    if (index != -1) {
-      final notif = _notifications[index];
-      _notifications[index] = notif.copyWith(
-          readBy: {
-            ...?notif.readBy,
-            userId: true,
-          }
-      );
-      notifyListeners();
-    }
+  @override
+  void dispose() {
+    stopListening();
+    super.dispose();
   }
-
-    Future<void> markAllAsRead(String userId) async {
-    if (_notifications.isEmpty) return;
-
-    final batch = _firestore.batch();
-
-    for (final n in _notifications) {
-      final ref = _firestore.collection('notifications').doc(n.id);
-      batch.update(ref, {
-        'readBy.$userId': true,
-      });
-
-      // update local state
-      final updated = n.copyWithReadBy({...n.readBy ?? {}, userId: true});
-      final index = _notifications.indexWhere((e) => e.id == n.id);
-      if (index != -1) _notifications[index] = updated;
-    }
-
-    await batch.commit();
-
-    notifyListeners();
-  }
-
-
-
-
-
-
-
-
 }
+
+
+

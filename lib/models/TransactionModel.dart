@@ -1,12 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/enums/transaction_source_enum.dart';
 
-enum TransactionType {
-  addStock,
-  dispense,
-  createItem,
-  // deleteItem,
-}
+enum TransactionType { addStock, dispense, createItem, deleteItem }
 
 extension TransactionTypeX on TransactionType {
   String get label {
@@ -17,10 +12,11 @@ extension TransactionTypeX on TransactionType {
         return "CREATE ITEM";
       case TransactionType.dispense:
         return "DISPENSE";
+      case TransactionType.deleteItem:
+        return "DELETE ITEM";
     }
   }
 }
-
 
 class InventoryTransaction {
   final String id;
@@ -61,7 +57,9 @@ class InventoryTransaction {
     return InventoryTransaction(
       id: doc.id,
       type: TransactionType.values.firstWhere(
-            (e) => e.name == (data['type'] as String).toLowerCase(),
+            (e) =>
+        e.name.toLowerCase() ==
+            (data['type'] as String).toString().toLowerCase(),
         orElse: () => TransactionType.addStock,
       ),
       itemId: data['itemId'],
@@ -73,7 +71,7 @@ class InventoryTransaction {
       userRole: data['userRole'],
       source: TransactionSourceX.fromString(data['source']),
       timestamp: (data['timestamp'] as Timestamp).toDate(),
-      approvedBy: data['approvedBy']
+      approvedBy: data['approvedBy'],
     );
   }
 
@@ -82,21 +80,19 @@ class InventoryTransaction {
     return InventoryTransaction(
       id: json['id'],
       type: TransactionType.values.firstWhere(
-            (e) => e.name == json['type'],
+        (e) => e.name == json['type'],
         orElse: () => TransactionType.addStock,
       ),
       itemId: json['itemId'],
       itemName: json['itemName'],
       quantity: json['quantity'],
-      expiry: json['expiry'] != null
-          ? DateTime.parse(json['expiry'])
-          : null,
+      expiry: json['expiry'] != null ? DateTime.parse(json['expiry']) : null,
       userId: json['userId'],
       userName: json['userName'],
       userRole: json['userRole'],
       source: TransactionSourceX.fromString(json['source']),
       timestamp: DateTime.parse(json['timestamp']),
-      approvedBy: json['approvedBy']
+      approvedBy: json['approvedBy'],
     );
   }
 

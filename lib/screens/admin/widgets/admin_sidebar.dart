@@ -131,7 +131,7 @@ class AdminSidebar extends StatelessWidget {
               context.read<AccountsProvider>().logout();
 
               // 2️⃣ Navigate to landing
-              context.go('/');
+              context.go('/login/admin');
             },
             child: Padding(
               padding: const EdgeInsets.only(bottom: 20),
