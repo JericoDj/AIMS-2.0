@@ -32,13 +32,13 @@ Future<void> main() async {
     const WindowOptions(
       minimumSize: Size(1024, 768),
       center: true,
-      titleBarStyle: TitleBarStyle.normal,
+      titleBarStyle: TitleBarStyle.hidden, // optional but recommended
     ),
         () async {
       await windowManager.show();
       await windowManager.focus();
 
-      // ✅ 100% width & height of screen
+      // 🔥 FORCE TRUE FULLSCREEN
       await windowManager.maximize();
     },
   );
