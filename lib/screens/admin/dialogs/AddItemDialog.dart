@@ -10,9 +10,7 @@ import '../../../utils/enums/item_enum.dart';
 
 class AddItemDialog extends StatefulWidget {
   final BuildContext parentContext;
-  const AddItemDialog({
-    required this.parentContext,
-    super.key});
+  const AddItemDialog({required this.parentContext, super.key});
 
   @override
   State<AddItemDialog> createState() => _AddItemDialogState();
@@ -20,7 +18,7 @@ class AddItemDialog extends StatefulWidget {
 
 class _AddItemDialogState extends State<AddItemDialog> {
   final _nameCtrl = TextEditingController();
-  final _qtyCtrl = TextEditingController();
+  final _qtyCtrl = TextEditingController(text: "0");
 
   ItemCategory? _category;
   DateTime? _expiryDate;
@@ -41,7 +39,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
     final accounts = context.read<AccountsProvider>();
     final user = accounts.currentUser;
 
-    final name = _nameCtrl.text.trim();
+    final name = _nameCtrl.text.trim().toUpperCase();
     print(name);
     print("heres the name");
     final quantity = int.tryParse(_qtyCtrl.text);
@@ -63,15 +61,12 @@ class _AddItemDialogState extends State<AddItemDialog> {
     setState(() => _loading = true);
 
     try {
-
       print("setting the inventory");
       final inventory = InventoryController();
       print("inventory set done");
 
       print("checking item name");
       final exists = await inventory.itemNameExists(name);
-
-
 
       if (exists) {
         print("item already exists");
@@ -91,8 +86,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
         user: user,
       );
 
-
-
       print("item created");
 
       print("item adding stock");
@@ -105,13 +98,13 @@ class _AddItemDialogState extends State<AddItemDialog> {
 
       print("stock added");
       print("updating list");
-      context.read<InventoryProvider>().fetchItems(refresh: true);
+      if (context.mounted) {
+        await context.read<InventoryProvider>().fetchItems(refresh: true);
+      }
       print('list updated');
       return true;
     } catch (e) {
-      messenger?.showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      messenger?.showSnackBar(SnackBar(content: Text(e.toString())));
       return false;
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -144,6 +137,7 @@ class _AddItemDialogState extends State<AddItemDialog> {
               DialogTextField(
                 label: "Item Name",
                 controller: _nameCtrl,
+                textCapitalization: TextCapitalization.characters,
               ),
 
               const SizedBox(height: 12),
@@ -155,15 +149,19 @@ class _AddItemDialogState extends State<AddItemDialog> {
                   labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
-                items: ItemCategory.values.map((cat) {
-                  return DropdownMenuItem(
-                    value: cat,
-                    child: Text(cat.label),
-                  );
-                }).toList(),
-                onChanged: _loading ? null : (val) {
-                  setState(() => _category = val);
-                },
+                items:
+                    ItemCategory.values.map((cat) {
+                      return DropdownMenuItem(
+                        value: cat,
+                        child: Text(cat.label),
+                      );
+                    }).toList(),
+                onChanged:
+                    _loading
+                        ? null
+                        : (val) {
+                          setState(() => _category = val);
+                        },
               ),
 
               const SizedBox(height: 12),
@@ -173,29 +171,30 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 label: "Quantity",
                 controller: _qtyCtrl,
                 keyboardType: TextInputType.number,
-
               ),
 
               const SizedBox(height: 12),
 
               /// EXPIRY DATE PICKER
               InkWell(
-                onTap: _loading
-                    ? null
-                    : () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    useRootNavigator: false,
-                    firstDate: DateTime.now(),
-                    lastDate:
-                    DateTime.now().add(const Duration(days: 365 * 10)),
-                    initialDate: DateTime.now(),
-                  );
+                onTap:
+                    _loading
+                        ? null
+                        : () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            useRootNavigator: false,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365 * 10),
+                            ),
+                            initialDate: DateTime.now(),
+                          );
 
-                  if (picked != null && mounted) {
-                    setState(() => _expiryDate = picked);
-                  }
-                },
+                          if (picked != null && mounted) {
+                            setState(() => _expiryDate = picked);
+                          }
+                        },
                 child: InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Expiry Date',
@@ -209,7 +208,6 @@ class _AddItemDialogState extends State<AddItemDialog> {
                 ),
               ),
 
-
               const SizedBox(height: 25),
 
               Row(
@@ -222,14 +220,18 @@ class _AddItemDialogState extends State<AddItemDialog> {
                     ),
 
                     child: TextButton(
-                      onPressed: _loading
-                          ? null
-                          : () =>
-                          Navigator.of(context, rootNavigator: true).pop(),
+                      onPressed:
+                          _loading
+                              ? null
+                              : () =>
+                                  Navigator.of(
+                                    context,
+                                    rootNavigator: true,
+                                  ).pop(),
                       child: const Text(
-                          style: TextStyle(
-                              color: Colors.red),
-                          "Cancel"),
+                        style: TextStyle(color: Colors.red),
+                        "Cancel",
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -240,25 +242,32 @@ class _AddItemDialogState extends State<AddItemDialog> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: _loading
-                        ? null
-                        : () async {
-                      final success = await _save();
-                      if (success && mounted) {
-                        Navigator.of(context, rootNavigator: true).pop();
-                      }
-                    },
-                    child: _loading
-                        ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child:
-                      CircularProgressIndicator(strokeWidth: 2),
-                    )
-                        : const Text(
-                        style: TextStyle(fontWeight: FontWeight.bold,
-                            color: Colors.white),
-                        "Save"),
+                    onPressed:
+                        _loading
+                            ? null
+                            : () async {
+                              final success = await _save();
+                              if (success && mounted) {
+                                Navigator.of(
+                                  context,
+                                  rootNavigator: true,
+                                ).pop();
+                              }
+                            },
+                    child:
+                        _loading
+                            ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Text(
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                              "Save",
+                            ),
                   ),
                 ],
               ),

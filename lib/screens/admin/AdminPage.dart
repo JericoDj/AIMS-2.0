@@ -11,6 +11,7 @@ import '../../models/AppNotification.dart';
 import '../../providers/accounts_provider.dart';
 import '../../providers/notification_provider.dart';
 import '../../providers/sync_provider.dart';
+import '../../providers/sync_request_provider.dart';
 import '../../utils/enums/stock_filter_enum.dart';
 import '../Offline/OfflineInventoryPage.dart';
 import '../Offline/OfflineStockMonitoringPage.dart';
@@ -32,26 +33,17 @@ class AdminPage extends StatefulWidget {
   const AdminPage({super.key, this.forceOffline});
   final bool? forceOffline;
 
-
-
-
-
-
   @override
   State<AdminPage> createState() => _AdminPageState();
-
 }
 
-
 class _AdminPageState extends State<AdminPage> {
-
   static const String _currentUserKey = 'current_user';
   int selectedIndex = 0;
   bool isOfflineMode = false;
 
   String? pendingSearchValue;
   StockFilter? pendingStockFilter;
-
 
   // int notificationCount = 4; // example for now
 
@@ -62,13 +54,9 @@ class _AdminPageState extends State<AdminPage> {
     }).length;
   }
 
-
-
   final GetStorage box = GetStorage('current_user');
 
   bool _hasValidOfflineUser() {
-
-
     final data = box.read(_currentUserKey);
 
     debugPrint('🔍 OFFLINE CHECK current_user = $data');
@@ -82,15 +70,10 @@ class _AdminPageState extends State<AdminPage> {
         data['role'] != null;
   }
 
-
-
-
-
   void _showNotificationPanel() {
     // fetch first batch
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-
     });
 
     final userId = context.read<AccountsProvider>().currentUser?.id;
@@ -153,7 +136,9 @@ class _AdminPageState extends State<AdminPage> {
                             if (unread > 0)
                               TextButton(
                                 onPressed: () {
-                                  context.read<NotificationProvider>().markAllAsRead(userId);
+                                  context
+                                      .read<NotificationProvider>()
+                                      .markAllAsRead(userId);
                                 },
                                 child: const Text(
                                   "Mark all as read",
@@ -172,7 +157,6 @@ class _AdminPageState extends State<AdminPage> {
                     const SizedBox(height: 12),
 
                     // ---------------- BODY ----------------
-
                     if (notifProvider.notifications.isEmpty)
                       const Padding(
                         padding: EdgeInsets.all(20),
@@ -185,44 +169,49 @@ class _AdminPageState extends State<AdminPage> {
                         height: MediaQuery.of(context).size.height * 0.55,
                         child: SingleChildScrollView(
                           child: Column(
-                            children: notifProvider.notifications.map((n) {
-                              final isRead = (n.readBy?[userId] == true);
+                            children:
+                                notifProvider.notifications.map((n) {
+                                  final isRead = (n.readBy?[userId] == true);
 
-                              return Column(
-                                children: [
-                                  ListTile(
-                                    leading: Icon(
-                                      isRead
-                                          ? Icons.notifications_none
-                                          : Icons.notifications_active,
-                                      color: isRead ? Colors.grey : Colors.green,
-                                    ),
-                                    title: Text(
-                                      n.title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                    subtitle: Text(n.message),
-                                    trailing: Text(
-                                      _formatTime(n.createdAt),
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    onTap: () {
-                                      context
-                                          .read<NotificationProvider>()
-                                          .markAsRead(n.id, userId);
+                                  return Column(
+                                    children: [
+                                      ListTile(
+                                        leading: Icon(
+                                          isRead
+                                              ? Icons.notifications_none
+                                              : Icons.notifications_active,
+                                          color:
+                                              isRead
+                                                  ? Colors.grey
+                                                  : Colors.green,
+                                        ),
+                                        title: Text(
+                                          n.title,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        subtitle: Text(n.message),
+                                        trailing: Text(
+                                          _formatTime(n.createdAt),
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                        onTap: () {
+                                          context
+                                              .read<NotificationProvider>()
+                                              .markAsRead(n.id, userId);
 
-                                      Navigator.pop(context);
-                                      _handleNotificationNavigation(n);
-                                    },
-                                  ),
-                                  const Divider(height: 6),
-                                ],
-                              );
-                            }).toList(),
+                                          Navigator.pop(context);
+                                          _handleNotificationNavigation(n);
+                                        },
+                                      ),
+                                      const Divider(height: 6),
+                                    ],
+                                  );
+                                }).toList(),
                           ),
                         ),
-                      )
-
+                      ),
                   ],
                 ),
               );
@@ -233,13 +222,11 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-
   int getUnread(NotificationProvider provider, String userId) {
     return provider.notifications.where((n) {
       return n.readBy?[userId] != true;
     }).length;
   }
-
 
   void _handleNotificationNavigation(AppNotification n) {
     final type = n.type;
@@ -255,7 +242,6 @@ class _AdminPageState extends State<AdminPage> {
         isOfflineMode = false;
         selectedIndex = 2; // Inventory Management
       }
-
       // TRANSACTION-RELATED
       else if (type == 'DISPENSE' || type == 'STOCK_ADDED') {
         isOfflineMode = false;
@@ -263,7 +249,6 @@ class _AdminPageState extends State<AdminPage> {
       }
     });
   }
-
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();
@@ -277,8 +262,6 @@ class _AdminPageState extends State<AdminPage> {
       return '${diff.inDays}d ago';
     }
   }
-
-
 
   @override
   void initState() {
@@ -315,17 +298,12 @@ class _AdminPageState extends State<AdminPage> {
     {"icon": Icons.settings, "label": "Settings"},
   ];
 
-
-
   @override
   Widget build(BuildContext context) {
-
-
-
     Future<String> uploadProfileImage(String userId, File file) async {
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profileImages/$userId.jpg');
+      final ref = FirebaseStorage.instance.ref().child(
+        'profileImages/$userId.jpg',
+      );
 
       await ref.putFile(file);
       return await ref.getDownloadURL();
@@ -346,15 +324,16 @@ class _AdminPageState extends State<AdminPage> {
 
         await context.read<AccountsProvider>().updatePhoto(url);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profile updated")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Profile updated")));
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Failed: $e")),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed: $e")));
       }
     }
+
     final menuItems = isOfflineMode ? offlineMenu : onlineMenu;
 
     return Scaffold(
@@ -372,7 +351,6 @@ class _AdminPageState extends State<AdminPage> {
   // LEFT SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
-
     Future<void> _pickProfileImage() async {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -381,20 +359,19 @@ class _AdminPageState extends State<AdminPage> {
       final file = File(picked.path);
       final uid = context.read<AccountsProvider>().currentUser!.id;
 
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profileImages/$uid.jpg');
+      final ref = FirebaseStorage.instance.ref().child(
+        'profileImages/$uid.jpg',
+      );
 
       await ref.putFile(file);
       final url = await ref.getDownloadURL();
 
       await context.read<AccountsProvider>().updatePhoto(url);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile image updated")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Profile image updated")));
     }
-
 
     final isAdmin = context.watch<AccountsProvider>().isAdmin;
     final syncProvider = context.watch<SyncProvider>();
@@ -410,7 +387,6 @@ class _AdminPageState extends State<AdminPage> {
             children: [
               Column(
                 children: [
-
                   Align(
                     alignment: Alignment.topRight,
                     child: Padding(
@@ -421,22 +397,38 @@ class _AdminPageState extends State<AdminPage> {
                           children: [
                             Consumer<NotificationProvider>(
                               builder: (context, notifProvider, _) {
-                                final userId = context.read<AccountsProvider>().currentUser?.id;
-                                final unread = userId == null ? 0 : getUnread(notifProvider, userId);
+                                final userId =
+                                    context
+                                        .read<AccountsProvider>()
+                                        .currentUser
+                                        ?.id;
+                                final unread =
+                                    userId == null
+                                        ? 0
+                                        : getUnread(notifProvider, userId);
 
                                 return Stack(
                                   children: [
-                                    Icon(Icons.notifications, size: 30, color: Colors.green[800]),
+                                    Icon(
+                                      Icons.notifications,
+                                      size: 30,
+                                      color: Colors.green[800],
+                                    ),
 
                                     if (unread > 0)
                                       Positioned(
                                         right: 0,
                                         top: -2,
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 4,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
                                             color: Colors.red,
-                                            borderRadius: BorderRadius.circular(10),
+                                            borderRadius: BorderRadius.circular(
+                                              10,
+                                            ),
                                           ),
                                           child: Text(
                                             unread.toString(),
@@ -473,28 +465,30 @@ class _AdminPageState extends State<AdminPage> {
                       ),
                     ),
                   ),
-      Consumer<AccountsProvider>(
-        builder: (_, acc, __) {
-          final url = acc.currentUser?.photoUrl;
+                  Consumer<AccountsProvider>(
+                    builder: (_, acc, __) {
+                      final url = acc.currentUser?.photoUrl;
 
-          ImageProvider provider;
+                      ImageProvider provider;
 
-          if (url != null && url.isNotEmpty && url.startsWith('http')) {
-            provider = NetworkImage(url);
-          } else {
-            provider = const AssetImage("assets/Avatar2.jpeg");
-          }
+                      if (url != null &&
+                          url.isNotEmpty &&
+                          url.startsWith('http')) {
+                        provider = NetworkImage(url);
+                      } else {
+                        provider = const AssetImage("assets/Avatar2.jpeg");
+                      }
 
-          return GestureDetector(
-            onTap: _pickProfileImage,
-            child: CircleAvatar(
-              radius: 40,
-              backgroundImage: provider,
-            ),
-          );
-        },
-      ),
-      ],
+                      return GestureDetector(
+                        onTap: _pickProfileImage,
+                        child: CircleAvatar(
+                          radius: 40,
+                          backgroundImage: provider,
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
               const SizedBox(height: 10),
               Consumer<AccountsProvider>(
@@ -534,23 +528,20 @@ class _AdminPageState extends State<AdminPage> {
                   onTap: () => setState(() => selectedIndex = index),
                   child: Container(
                     height: 48,
-                    color: isSelected
-                        ? Colors.green
-                        : Colors.transparent,
+                    color: isSelected ? Colors.green : Colors.transparent,
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Row(
                       children: [
-                        Icon(item["icon"] as IconData,
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.green[800]),
+                        Icon(
+                          item["icon"] as IconData,
+                          color: isSelected ? Colors.white : Colors.green[800],
+                        ),
                         const SizedBox(width: 15),
                         Text(
                           item["label"] as String,
                           style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : Colors.green[900],
+                            color:
+                                isSelected ? Colors.white : Colors.green[900],
                             fontSize: 15,
                           ),
                         ),
@@ -567,26 +558,27 @@ class _AdminPageState extends State<AdminPage> {
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
               child: ElevatedButton.icon(
-                  onPressed: () async {
+                onPressed: () async {
+                  final box = GetStorage('current_user');
+                  final data = box.read('current_user');
 
-                    final box = GetStorage('current_user');
-                    final data = box.read('current_user');
-
-                    if (data == null || data is! Map) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("No offline user found. Please login online first."),
+                  if (data == null || data is! Map) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          "No offline user found. Please login online first.",
                         ),
-                      );
-                      return;
-                    }
-
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) => const UploadToOnlineDialog(),
+                      ),
                     );
-                  },
+                    return;
+                  }
+
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const UploadToOnlineDialog(),
+                  );
+                },
                 icon: const Icon(Icons.cloud_upload, color: Colors.white),
                 label: const Text(
                   "Upload to Online",
@@ -605,25 +597,60 @@ class _AdminPageState extends State<AdminPage> {
           if (isAdmin && !isOfflineMode)
             Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  context.push('/admin/sync');
+              child: Consumer<SyncRequestProvider>(
+                builder: (context, syncReq, _) {
+                  final count = syncReq.requests.length;
+                  return GestureDetector(
+                    onTap: () {
+                      context.push('/admin/sync');
+                    },
+                    child: Container(
+                      width: 200,
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: Colors.orange[700],
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.sync, color: Colors.white),
+                          const SizedBox(width: 8),
+                          Text(
+                            syncProvider.syncing
+                                ? "Syncing..."
+                                : "Sync Requests",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          if (count > 0 && !syncProvider.syncing) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green, // Changed to Green
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  );
                 },
-                icon: const Icon(
-                    color: Colors.white,
-                    Icons.sync),
-                label: Text(
-                  style: const TextStyle(color: Colors.white),
-                  syncProvider.syncing ? "Syncing..." : "Sync Requests",
-                ),
-                style: ElevatedButton.styleFrom(
-
-                  backgroundColor: Colors.orange[700],
-                  minimumSize: const Size(200, 40),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
               ),
             ),
 
@@ -650,7 +677,9 @@ class _AdminPageState extends State<AdminPage> {
                 if (!hasOfflineUser) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text("No offline user found. Please login online first."),
+                      content: Text(
+                        "No offline user found. Please login online first.",
+                      ),
                     ),
                   );
                   return;
@@ -662,18 +691,16 @@ class _AdminPageState extends State<AdminPage> {
                 });
               },
 
-
-
-
               child: Container(
                 width: 200,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: widget.forceOffline == true
-                      ? Colors.grey
-                      : isOfflineMode
-                      ? Colors.red[300]
-                      : Colors.green[300],
+                  color:
+                      widget.forceOffline == true
+                          ? Colors.grey
+                          : isOfflineMode
+                          ? Colors.red[300]
+                          : Colors.green[300],
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
@@ -693,7 +720,6 @@ class _AdminPageState extends State<AdminPage> {
             ),
           ),
 
-
           // ------------------- LOGOUT -------------------
           Padding(
             padding: const EdgeInsets.only(bottom: 25),
@@ -708,20 +734,15 @@ class _AdminPageState extends State<AdminPage> {
                 children: [
                   Icon(Icons.logout, color: Colors.green[800]),
                   const SizedBox(width: 8),
-                  Text(
-                    "Logout",
-                    style: TextStyle(color: Colors.green[800]),
-                  ),
+                  Text("Logout", style: TextStyle(color: Colors.green[800])),
                 ],
               ),
             ),
           ),
-
         ],
       ),
     );
   }
-
 
   // -----------------------------------
   // RIGHT PANEL + TOP BAR & NOTIFICATION
@@ -746,15 +767,14 @@ class _AdminPageState extends State<AdminPage> {
                   child: Text(
                     "Provincial Government of Bulacan Pharmacy",
                     style: TextStyle(
-                        color: Colors.green[600],
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold),
+                      color: Colors.green[600],
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
 
                 // ------------------- NOTIFICATION ICON -------------------
-
-
                 const SizedBox(width: 20),
 
                 // ------------------- ONLINE/OFFLINE TOGGLE ------------------
@@ -808,9 +828,7 @@ class _AdminPageState extends State<AdminPage> {
             initialFilter: pendingStockFilter,
           );
         case 3:
-          return TransactionsPage(
-            initialSearch: pendingSearchValue,
-          );
+          return TransactionsPage(initialSearch: pendingSearchValue);
         case 4:
           return const ManageAccountsPage();
         case 5:

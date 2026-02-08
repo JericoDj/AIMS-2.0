@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../models/TransactionModel.dart';
 import '../../providers/transactions_provider.dart';
-import '../../providers/accounts_provider.dart';
+
 import '../../utils/enums/stock_actions_enum.dart';
 import 'DashboardPage.dart';
 import 'dialogs/StockActionDialog.dart';
@@ -49,27 +49,7 @@ class InventoryPage extends StatelessWidget {
                 },
               ),
 
-              // ---------------- DELETE BUTTON (ADMIN ONLY) ----------------
-              Consumer<AccountsProvider>(
-                builder: (context, auth, _) {
-                  if (!auth.isAdmin) return const SizedBox.shrink();
-
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 40),
-                    child: InventoryButton(
-                      icon: Icons.delete_forever,
-                      label: "Delete Item",
-                      // Red warning color
-                      color: Colors.red[50],
-                      iconColor: Colors.red[600],
-                      borderColor: Colors.red[600],
-                      onTap: () {
-                        _openStockDialog(context, StockActionMode.delete);
-                      },
-                    ),
-                  );
-                },
-              ),
+              // ---------------- DELETE BUTTON MOVED TO VIEW DIALOG ----------------
             ],
           ),
 

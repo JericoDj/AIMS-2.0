@@ -2,23 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 class InventoryReportDialog extends StatefulWidget {
-  final Future<void> Function(DateTime start, DateTime end) onGenerate;
+  final Future<void> Function(DateTime start, DateTime end, String category)
+  onGenerate;
 
-  const InventoryReportDialog({
-    super.key,
-    required this.onGenerate,
-  });
+  const InventoryReportDialog({super.key, required this.onGenerate});
 
   @override
-  State<InventoryReportDialog> createState() =>
-      _InventoryReportDialogState();
+  State<InventoryReportDialog> createState() => _InventoryReportDialogState();
 }
 
 class _InventoryReportDialogState extends State<InventoryReportDialog> {
   late DateTime _startDate;
   late DateTime _endDate;
+  String _selectedCategory = 'PGB'; // Default
 
   final _dateFormat = DateFormat('yyyy-MM-dd');
+  final List<String> _categories = ['PGB', 'BMC', 'DSB'];
 
   @override
   void initState() {
@@ -29,9 +28,7 @@ class _InventoryReportDialogState extends State<InventoryReportDialog> {
     _endDate = now;
   }
 
-  Future<void> _pickDate({
-    required bool isStart,
-  }) async {
+  Future<void> _pickDate({required bool isStart}) async {
     final picked = await showDatePicker(
       context: context,
       initialDate: isStart ? _startDate : _endDate,
@@ -56,9 +53,7 @@ class _InventoryReportDialogState extends State<InventoryReportDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: SizedBox(
         width: 460,
         child: Padding(
@@ -87,6 +82,28 @@ class _InventoryReportDialogState extends State<InventoryReportDialog> {
               ),
 
               const SizedBox(height: 20),
+
+              // ================= CATEGORY DROPDOWN =================
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
+                decoration: const InputDecoration(
+                  labelText: 'Select Category',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                ),
+                items:
+                    _categories.map((cat) {
+                      return DropdownMenuItem(value: cat, child: Text(cat));
+                    }).toList(),
+                onChanged: (val) {
+                  if (val != null) setState(() => _selectedCategory = val);
+                },
+              ),
+
+              const SizedBox(height: 16),
 
               // ================= START DATE =================
               ListTile(
@@ -126,7 +143,11 @@ class _InventoryReportDialogState extends State<InventoryReportDialog> {
                     ),
                     onPressed: () async {
                       Navigator.pop(context);
-                      await widget.onGenerate(_startDate, _endDate);
+                      await widget.onGenerate(
+                        _startDate,
+                        _endDate,
+                        _selectedCategory,
+                      );
                     },
                     child: const Text("Generate"),
                   ),

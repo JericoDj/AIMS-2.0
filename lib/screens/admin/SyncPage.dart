@@ -17,8 +17,24 @@ class _SyncPageState extends State<SyncPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SyncRequestProvider>().loadPendingRequests();
+      context.read<SyncRequestProvider>().startListening();
     });
+  }
+
+  @override
+  void dispose() {
+    // context.read would be unsafe here if the widget is unmounted contextually,
+    // but usually provider is fine. However, robust way is to just let provider handle it
+    // or call stop if we want to save resources when leaving this page.
+    // Since SyncRequestProvider might be global, maybe we don't stop listening?
+    // BUT the plan said "Handle subscription cancellation in dispose()".
+    // If the provider is scoped to the app, stopping it here might stop it for everyone (e.g. the badge).
+    // WAIT. If we want the badge to verify requests count GLOBALLY, the provider should PROBABLY listen ALL THE TIME
+    // or at least when the Admin is logged in.
+    // If I stop listening here, the badge in StockMonitoringPage will stop updating!
+    // Result: I should NOT stop listening here if I want the badge to work elsewhere.
+    // I will just start listening here (idempotent check in provider).
+    super.dispose();
   }
 
   @override
@@ -31,17 +47,7 @@ class _SyncPageState extends State<SyncPage> {
           'Sync Requests',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-            onPressed: provider.loading
-                ? null
-                : () {
-              provider.loadPendingRequests();
-            },
-          ),
-        ],
+        // Removed Refresh button as it is real-time now
       ),
 
       body: Padding(
@@ -53,9 +59,7 @@ class _SyncPageState extends State<SyncPage> {
 
   Widget _buildBody(SyncRequestProvider provider) {
     if (provider.loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (provider.requests.isEmpty) {
@@ -79,10 +83,7 @@ class _SyncPageState extends State<SyncPage> {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (_, index) {
         final req = provider.requests[index];
-        return _SyncRequestCard(
-          request: req,
-          provider: provider,
-        );
+        return _SyncRequestCard(request: req, provider: provider);
       },
     );
   }
@@ -95,18 +96,13 @@ class _SyncRequestCard extends StatelessWidget {
   final SyncRequest request;
   final SyncRequestProvider provider;
 
-  const _SyncRequestCard({
-    required this.request,
-    required this.provider,
-  });
+  const _SyncRequestCard({required this.request, required this.provider});
 
   @override
   Widget build(BuildContext context) {
     return Card(
       elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: () {
@@ -164,11 +160,12 @@ class _SyncRequestCard extends StatelessWidget {
                   TextButton.icon(
                     icon: const Icon(Icons.cancel, color: Colors.red),
                     label: const Text('Reject'),
-                    onPressed: provider.syncing
-                        ? null
-                        : () async {
-                      await provider.reject(request);
-                    },
+                    onPressed:
+                        provider.syncing
+                            ? null
+                            : () async {
+                              await provider.reject(request);
+                            },
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
@@ -178,11 +175,12 @@ class _SyncRequestCard extends StatelessWidget {
                       backgroundColor: Colors.green,
                       foregroundColor: Colors.white,
                     ),
-                    onPressed: provider.syncing
-                        ? null
-                        : () async {
-                      await provider.approve(request);
-                    },
+                    onPressed:
+                        provider.syncing
+                            ? null
+                            : () async {
+                              await provider.approve(request);
+                            },
                   ),
                 ],
               ),
@@ -226,10 +224,7 @@ class _InfoChip extends StatelessWidget {
   final IconData icon;
   final String label;
 
-  const _InfoChip({
-    required this.icon,
-    required this.label,
-  });
+  const _InfoChip({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {

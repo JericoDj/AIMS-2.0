@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../dialogs/create_account_dialog.dart';
 import '../../models/AccountModel.dart';
 import '../../providers/accounts_provider.dart';
+import 'dialogs/PasswordConfirmationDialog.dart';
+
 class ManageAccountsPage extends StatelessWidget {
   const ManageAccountsPage({super.key});
 
@@ -25,9 +27,11 @@ class ManageAccountsPage extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 45,
-                  backgroundImage: (currentUser.photoUrl != null && currentUser.photoUrl!.contains('http'))
-                      ? NetworkImage(currentUser.photoUrl!)
-                      : const AssetImage('assets/Avatar2.jpeg'),
+                  backgroundImage:
+                      (currentUser.photoUrl != null &&
+                              currentUser.photoUrl!.contains('http'))
+                          ? NetworkImage(currentUser.photoUrl!)
+                          : const AssetImage('assets/Avatar2.jpeg'),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -39,10 +43,7 @@ class ManageAccountsPage extends StatelessWidget {
                 ),
                 Text(
                   currentUser.role.name.toUpperCase(),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
+                  style: const TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ],
             ),
@@ -53,10 +54,7 @@ class ManageAccountsPage extends StatelessWidget {
           Container(
             width: 700,
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Colors.green[600]!,
-                width: 2,
-              ),
+              border: Border.all(color: Colors.green[600]!, width: 2),
               color: Colors.green[50],
               borderRadius: BorderRadius.circular(40),
             ),
@@ -96,8 +94,7 @@ class ManageAccountsPage extends StatelessWidget {
                         Container(
                           height: 1,
                           color: Colors.green[300],
-                          margin:
-                          const EdgeInsets.symmetric(horizontal: 20),
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
                         ),
                     ],
                   ),
@@ -106,10 +103,7 @@ class ManageAccountsPage extends StatelessWidget {
                 Container(
                   decoration: BoxDecoration(
                     border: Border(
-                      top: BorderSide(
-                        color: Colors.green[300]!,
-                        width: 1,
-                      ),
+                      top: BorderSide(color: Colors.green[300]!, width: 1),
                     ),
                   ),
                   child: GestureDetector(
@@ -142,87 +136,45 @@ class ManageAccountsPage extends StatelessWidget {
   }
 
   // ------------------- REMOVE CONFIRMATION -------------------
-  void _confirmRemove(
-      BuildContext context,
-      AccountsProvider provider,
-      Account account,
-      ) {
-    showDialog(
+  Future<void> _confirmRemove(
+    BuildContext context,
+    AccountsProvider provider,
+    Account account,
+  ) async {
+    // 🔒 PASSWORD CONFIRMATION DIALOG
+    final confirmed = await showDialog<bool>(
       context: context,
-      builder: (_) {
-        final passwordCtrl = TextEditingController();
-
-        return AlertDialog(
-          title: const Text("Confirm Deletion"),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                "Remove ${account.fullName}?",
-              ),
-
-              if (account.role.name.toLowerCase() == "admin") ...[
-                const SizedBox(height: 12),
-                const Text(
-                  "Admin account requires password confirmation",
-                  style: TextStyle(color: Colors.red),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: passwordCtrl,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: "Your password",
-                  ),
-                ),
-              ],
-            ],
+      builder:
+          (_) => PasswordConfirmationDialog(
+            title: "Remove Account?",
+            message:
+                "Are you sure you want to remove ${account.fullName}? This cannot be undone.",
+            confirmLabel: "Remove Account",
+            confirmColor: Colors.red,
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Cancel"),
-            ),
-            TextButton(
-              onPressed: () async {
-                try {
-                  await provider.removeAccount(
-                    account.id,
-                    adminPassword: passwordCtrl.text.isEmpty
-                        ? null
-                        : passwordCtrl.text,
-                  );
-
-                  if (context.mounted) {
-                    Navigator.pop(context);
-                  }
-                } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          e.toString().replaceAll('Exception: ', ''),
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              child: const Text(
-                "Remove",
-                style: TextStyle(color: Colors.red),
-              ),
-            ),
-
-          ],
-        );
-      },
     );
+
+    if (confirmed != true) return;
+
+    try {
+      // ✅ We don't need to pass password anymore because PasswordConfirmationDialog
+      // ALREADY verified the admin's identity via re-auth.
+      await provider.removeAccount(account.id);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Account removed successfully')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
+        );
+      }
+    }
   }
 }
-
-
-
 
 //
 // ==================== USER ROW WIDGET ====================
@@ -251,9 +203,10 @@ class _UserRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 26,
-            backgroundImage: (imageUrl != null && imageUrl!.contains('http'))
-                ? NetworkImage(imageUrl!)
-                : const AssetImage('assets/Avatar2.jpeg') as ImageProvider,
+            backgroundImage:
+                (imageUrl != null && imageUrl!.contains('http'))
+                    ? NetworkImage(imageUrl!)
+                    : const AssetImage('assets/Avatar2.jpeg') as ImageProvider,
           ),
           const SizedBox(width: 20),
 
@@ -268,13 +221,7 @@ class _UserRow extends StatelessWidget {
             ),
           ),
 
-          Text(
-            role,
-            style: TextStyle(
-              fontSize: 18,
-              color: Colors.green[900],
-            ),
-          ),
+          Text(role, style: TextStyle(fontSize: 18, color: Colors.green[900])),
 
           const SizedBox(width: 40),
 
@@ -295,4 +242,3 @@ class _UserRow extends StatelessWidget {
     );
   }
 }
-

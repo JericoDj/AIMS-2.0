@@ -7,23 +7,21 @@ import 'inventoryController.dart';
 import 'inventoryTransactionController.dart';
 
 class SyncRequestController {
-
   final AccountsProvider _accountsProvider;
   SyncRequestController(this._accountsProvider);
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-
   Future<String?> _findItemByNameKey(String nameKey) async {
-    final snap = await _firestore
-        .collection('items')
-        .where('name_key', isEqualTo: nameKey.toLowerCase())
-        .limit(1)
-        .get();
+    final snap =
+        await _firestore
+            .collection('items')
+            .where('name_key', isEqualTo: nameKey.toLowerCase())
+            .limit(1)
+            .get();
 
     if (snap.docs.isEmpty) return null;
     return snap.docs.first.id;
   }
-
 
   // ================= APPROVE =================
   Future<void> applySync(SyncRequest request) async {
@@ -31,7 +29,8 @@ class SyncRequestController {
 
     final inventoryCtrl = InventoryController();
     final txCtrl = InventoryTransactionController();
-    final approverName = _accountsProvider.currentUser?.fullName ?? 'Unknown Approver';
+    final approverName =
+        _accountsProvider.currentUser?.fullName ?? 'Unknown Approver';
 
     // ================= 1️⃣ MAP ITEMS via name_key LOOKUP =================
     final Map<String, String> itemIdMap = {};
@@ -48,14 +47,24 @@ class SyncRequestController {
         final nameKey = rawName.toString().trim().toLowerCase();
         debugPrint('🔍 lookup name_key: $nameKey');
 
-        final snap = await _firestore
-            .collection('items')
-            .where('name_key', isEqualTo: nameKey)
-            .limit(1)
-            .get();
+        final snap =
+            await _firestore
+                .collection('items')
+                .where('name_key', isEqualTo: nameKey)
+                .limit(1)
+                .get();
 
         if (snap.docs.isEmpty) {
-          debugPrint('🚫 SKIP — no item match for name_key: $nameKey');
+          debugPrint('🆕 Item not found online, creating: $rawName');
+
+          final category = item['category'] ?? 'Uncategorized';
+          final newId = await inventoryCtrl.createItemNoLogs(
+            name: rawName,
+            category: category,
+          );
+
+          itemIdMap[item['id']] = newId;
+          debugPrint('✅ Created & Mapped: $rawName → $newId');
           continue;
         }
 
@@ -78,13 +87,38 @@ class SyncRequestController {
 
     for (final tx in request.transactions) {
       try {
-        final onlineItemId = itemIdMap[tx['itemId']];
+        String? onlineItemId = itemIdMap[tx['itemId']];
+
+        // 🔴 Special handling for DELETE: Item might not be in 'inventory' list
+        if (onlineItemId == null && tx['type'] == 'deleteItem') {
+          final name = tx['itemName'];
+          if (name != null) {
+            debugPrint('🔍 Looking up item for DELETE: $name');
+            // manual lookup
+            final snap =
+                await _firestore
+                    .collection('items')
+                    .where(
+                      'name_key',
+                      isEqualTo: name.toString().toLowerCase().trim(),
+                    )
+                    .limit(1)
+                    .get();
+
+            if (snap.docs.isNotEmpty) {
+              onlineItemId = snap.docs.first.id;
+              debugPrint('✅ Found item for DELETE: $onlineItemId');
+            }
+          }
+        }
+
         if (onlineItemId == null) {
           debugPrint('⚠️ SKIP tx — no mapped item');
           continue;
         }
 
-        final snap = await _firestore.collection('items').doc(onlineItemId).get();
+        final snap =
+            await _firestore.collection('items').doc(onlineItemId).get();
         if (!snap.exists) {
           debugPrint('⚠️ SKIP tx — mapped item missing in DB');
           continue;
@@ -106,6 +140,12 @@ class SyncRequestController {
             itemId: onlineItemId,
             quantity: mappedTx.quantity!,
             userName: request.userName,
+          );
+        } else if (mappedTx.type == TransactionType.deleteItem) {
+          await inventoryCtrl.deleteItem(
+            itemId: onlineItemId,
+            itemName: mappedTx.itemName,
+            user: null, // Sync user is logged in tx
           );
         } else {
           await inventoryCtrl.applyOfflineTransaction(tx: mappedTx);
@@ -155,21 +195,15 @@ class SyncRequestController {
     });
   }
 
-
-
-
-
-
-
-
   Future<void> _handleExcessSync({
     required InventoryController inventoryCtrl,
     required InventoryTransaction tx,
   }) async {
-    final itemSnap = await FirebaseFirestore.instance
-        .collection('items')
-        .doc(tx.itemId)
-        .get();
+    final itemSnap =
+        await FirebaseFirestore.instance
+            .collection('items')
+            .doc(tx.itemId)
+            .get();
 
     if (!itemSnap.exists) return;
 
@@ -178,7 +212,7 @@ class SyncRequestController {
 
     final int availableStock = batches.fold<int>(
       0,
-          (sum, b) => sum + (b['quantity'] as num).toInt(),
+      (sum, b) => sum + (b['quantity'] as num).toInt(),
     );
 
     if (availableStock <= 0) {
@@ -195,7 +229,6 @@ class SyncRequestController {
     await inventoryCtrl.dispenseStockNoLogs(
       itemId: tx.itemId,
       quantity: dispenseQty,
-
     );
 
     debugPrint(
@@ -203,13 +236,9 @@ class SyncRequestController {
     );
   }
 
-
-
   // ================= REJECT =================
   Future<void> rejectSync(SyncRequest request) async {
-    final ref = _firestore
-        .collection('syncRequests')
-        .doc(request.id);
+    final ref = _firestore.collection('syncRequests').doc(request.id);
 
     // ❌ Reject = DELETE ENTIRE REQUEST
     await ref.delete();

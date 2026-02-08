@@ -9,7 +9,10 @@ class DialogTextField extends StatelessWidget {
     required this.label,
     this.controller,
     this.keyboardType,
+    this.textCapitalization = TextCapitalization.sentences,
   });
+
+  final TextCapitalization textCapitalization;
 
   @override
   Widget build(BuildContext context) {
@@ -18,11 +21,10 @@ class DialogTextField extends StatelessWidget {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
+        textCapitalization: textCapitalization,
         decoration: InputDecoration(
           labelText: label,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         ),
       ),
     );

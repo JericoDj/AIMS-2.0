@@ -1,4 +1,5 @@
 // providers/sync_request_provider.dart
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -11,7 +12,11 @@ class SyncRequestProvider extends ChangeNotifier {
   final SyncRequestController _controller;
 
   SyncRequestProvider(AccountsProvider accountsProvider)
-      : _controller = SyncRequestController(accountsProvider);
+    : _controller = SyncRequestController(accountsProvider) {
+    if (accountsProvider.isAdmin) {
+      startListening();
+    }
+  }
 
   bool loading = false;
   bool syncing = false;
@@ -20,36 +25,53 @@ class SyncRequestProvider extends ChangeNotifier {
   List<SyncRequest> get requests => List.unmodifiable(_requests);
 
   // ================= LOAD PENDING =================
-  Future<void> loadPendingRequests() async {
-    if (loading) return;
+  StreamSubscription<QuerySnapshot>? _subscription;
+
+  @override
+  void dispose() {
+    stopListening();
+    super.dispose();
+  }
+
+  // ================= START LISTENING (STREAM) =================
+  void startListening() {
+    if (_subscription != null) return; // Already listening
 
     loading = true;
     notifyListeners();
 
     try {
-      _requests.clear();
-
-      final snapshot = await _firestore
-          .collection('syncRequests') // ✅ FLAT COLLECTION
+      _subscription = _firestore
+          .collection('syncRequests')
           .where('status', isEqualTo: 'pending')
           .orderBy('createdAt', descending: true)
-          .get();
-
-      for (final doc in snapshot.docs) {
-        _requests.add(
-          SyncRequest.fromFirestore(
-            doc.id,
-            doc.data(),
-          ),
-        );
-      }
-    } catch (e, s) {
-      debugPrint('❌ loadPendingRequests failed: $e');
-      debugPrintStack(stackTrace: s);
-    } finally {
+          .snapshots()
+          .listen(
+            (snapshot) {
+              _requests.clear();
+              for (final doc in snapshot.docs) {
+                _requests.add(SyncRequest.fromFirestore(doc.id, doc.data()));
+              }
+              loading = false;
+              notifyListeners();
+            },
+            onError: (e) {
+              debugPrint('❌ SyncRequest stream error: $e');
+              loading = false;
+              notifyListeners();
+            },
+          );
+    } catch (e) {
+      debugPrint('❌ startListening failed: $e');
       loading = false;
       notifyListeners();
     }
+  }
+
+  // ================= STOP LISTENING =================
+  void stopListening() {
+    _subscription?.cancel();
+    _subscription = null;
   }
 
   // ================= APPROVE =================

@@ -18,10 +18,7 @@ class OfflineInventoryController {
 
   // ================= NORMALIZE =================
   String normalizeItemName(String input) {
-    return input
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9]'), '')
-        .trim();
+    return input.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '').trim();
   }
 
   // ================= INIT =================
@@ -37,8 +34,7 @@ class OfflineInventoryController {
       // ✅ ALWAYS REGENERATE USING ITEM NAME (ONLINE COMPATIBLE)
       if (path == null || path.isEmpty) {
         debugPrint('🔧 Missing QR for ${item.name}, regenerating...');
-        item.barcodeImageUrl =
-        await OfflineQrUtil.generateAndSaveQr(
+        item.barcodeImageUrl = await OfflineQrUtil.generateAndSaveQr(
           payload: item.name,
         );
         continue;
@@ -47,8 +43,7 @@ class OfflineInventoryController {
       final file = File(path);
       if (!file.existsSync()) {
         debugPrint('🔧 QR file missing for ${item.name}, regenerating...');
-        item.barcodeImageUrl =
-        await OfflineQrUtil.generateAndSaveQr(
+        item.barcodeImageUrl = await OfflineQrUtil.generateAndSaveQr(
           payload: item.name,
         );
       }
@@ -75,15 +70,13 @@ class OfflineInventoryController {
     final itemId = _uuid.v4(); // internal offline ID ONLY
 
     // ✅ QR payload MUST MATCH ONLINE → ITEM NAME
-    final qrPath = await OfflineQrUtil.generateAndSaveQr(
-      payload: name,
-    );
+    final qrPath = await OfflineQrUtil.generateAndSaveQr(payload: name);
 
     final item = ItemModel(
-      id: itemId,                 // internal reference
+      id: itemId, // internal reference
       name: name,
       category: category,
-      barcode: name,              // ✅ SAME AS ONLINE
+      barcode: name, // ✅ SAME AS ONLINE
       barcodeImageUrl: qrPath,
       nameNormalized: normalizeItemName(name),
       batches: [],
@@ -126,10 +119,7 @@ class OfflineInventoryController {
     for (final batch in item.batches) {
       if (!merged && batch.expiry.isAtSameMomentAs(expiry)) {
         updatedBatches.add(
-          StockBatch(
-            quantity: batch.quantity + quantity,
-            expiry: batch.expiry,
-          ),
+          StockBatch(quantity: batch.quantity + quantity, expiry: batch.expiry),
         );
         merged = true;
       } else {
@@ -138,12 +128,7 @@ class OfflineInventoryController {
     }
 
     if (!merged) {
-      updatedBatches.add(
-        StockBatch(
-          quantity: quantity,
-          expiry: expiry,
-        ),
-      );
+      updatedBatches.add(StockBatch(quantity: quantity, expiry: expiry));
     }
 
     item.batches
@@ -226,29 +211,24 @@ class OfflineInventoryController {
 
   // ================= GET =================
   List<ItemModel> getAll() => List.unmodifiable(_items);
+  // ================= DELETE =================
+  Future<void> deleteItem({
+    required String itemId,
+    required String itemName,
+  }) async {
+    _items.removeWhere((i) => i.id == itemId);
+
+    await OfflineInventoryStorage.save(_items);
+
+    OfflineTransactionsProvider.instance.add(
+      InventoryTransaction(
+        id: _uuid.v4(),
+        source: TransactionSource.offline,
+        type: TransactionType.deleteItem,
+        itemId: itemId,
+        itemName: itemName,
+        timestamp: DateTime.now(),
+      ),
+    );
+  }
 }
-
-
-
-
-// ================= DELETE =================
-  // Future<void> deleteItem({
-  //   required String itemId,
-  //   required String itemName,
-  // }) async {
-  //   _items.removeWhere((i) => i.id == itemId);
-  //
-  //   await OfflineInventoryStorage.save(_items);
-  //
-  //   OfflineTransactionsProvider.instance.add(
-  //     InventoryTransaction(
-  //       id: _uuid.v4(),
-  //       source: TransactionSource.offline,
-  //       type: TransactionType.deleteItem,
-  //       itemId: itemId,
-  //       itemName: itemName,
-  //       timestamp: DateTime.now(),
-  //     ),
-  //   );
-  // }
-

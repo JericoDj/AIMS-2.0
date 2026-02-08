@@ -131,11 +131,33 @@ class _OfflineStockActionDialogState extends State<OfflineStockActionDialog> {
     }
 
     if (widget.mode == StockActionMode.delete) {
-      // Offline delete not implemented yet
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Offline deletion not supported yet")),
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder:
+            (ctx) => AlertDialog(
+              title: const Text('Confirm Delete'),
+              content: Text(
+                'Are you sure you want to delete "${item.name}"? This cannot be undone.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(true),
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: const Text('Delete'),
+                ),
+              ],
+            ),
       );
-      return;
+
+      if (confirm == true) {
+        await _inventory.deleteItem(itemId: item.id, itemName: item.name);
+      } else {
+        return;
+      }
     }
 
     context.read<OfflineInventoryProvider>().reload();

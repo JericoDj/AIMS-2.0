@@ -9,6 +9,7 @@ import '../../../providers/items_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../../utils/MyColors.dart';
 import '../../../utils/enums/stock_actions_enum.dart';
+import 'PasswordConfirmationDialog.dart';
 
 class StockActionDialog extends StatefulWidget {
   final StockActionMode mode;
@@ -20,7 +21,6 @@ class StockActionDialog extends StatefulWidget {
 }
 
 class _StockActionDialogState extends State<StockActionDialog> {
-
   bool _canSubmit() {
     if (_selectedItem == null) return false;
 
@@ -60,7 +60,6 @@ class _StockActionDialogState extends State<StockActionDialog> {
   int _selectedIndex = 0;
   int? _hoveredIndex;
 
-
   Future<void> _handleEnter() async {
     if (_isSubmitting) return;
 
@@ -88,8 +87,6 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
     await _confirmItem(_selectedItem!);
   }
-
-
 
   @override
   void initState() {
@@ -130,9 +127,10 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
     final items = context.read<InventoryProvider>().items;
 
-    final matches = items.where((item) {
-      return item.name.toLowerCase().contains(query.toLowerCase());
-    }).toList();
+    final matches =
+        items.where((item) {
+          return item.name.toLowerCase().contains(query.toLowerCase());
+        }).toList();
 
     setState(() {
       _filteredItems = matches;
@@ -157,10 +155,10 @@ class _StockActionDialogState extends State<StockActionDialog> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: AppColors.primaryGreen,     // header + selected date
-              onPrimary: Colors.white,              // header text
-              surface: Colors.white,                // calendar bg
-              onSurface: AppColors.primaryGreen,    // calendar text
+              primary: AppColors.primaryGreen, // header + selected date
+              onPrimary: Colors.white, // header text
+              surface: Colors.white, // calendar bg
+              onSurface: AppColors.primaryGreen, // calendar text
             ),
             dialogBackgroundColor: Colors.white,
 
@@ -168,9 +166,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
             textButtonTheme: TextButtonThemeData(
               style: TextButton.styleFrom(
                 foregroundColor: AppColors.primaryGreen, // OK / CANCEL
-                textStyle: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                ),
+                textStyle: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
 
@@ -193,8 +189,6 @@ class _StockActionDialogState extends State<StockActionDialog> {
     }
   }
 
-
-
   // ================= CONFIRM =================
   Future<void> _confirmItem(ItemModel item) async {
     if (_isSubmitting) return;
@@ -215,6 +209,24 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
       // ================= DELETE (FULL ITEM) =================
       if (widget.mode == StockActionMode.delete) {
+        // 🔒 PASSWORD CONFIRMATION FIRST
+        final confirmed = await showDialog<bool>(
+          context: context,
+          builder:
+              (_) => PasswordConfirmationDialog(
+                title: "Delete Item?",
+                message:
+                    "This action cannot be undone. Enter your password to confirm.",
+                confirmLabel: "Delete Forever",
+                confirmColor: Colors.red,
+              ),
+        );
+
+        if (confirmed != true) {
+          if (mounted) setState(() => _isSubmitting = false);
+          return;
+        }
+
         await inventory.deleteItem(
           itemId: item.id,
           itemName: item.name,
@@ -269,9 +281,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
           message: 'Dispensed $qty pcs from ${item.name}',
         );
 
-        await inventoryProvider.checkAndSendStockNotifications(
-          notifProvider,
-        );
+        await inventoryProvider.checkAndSendStockNotifications(notifProvider);
       }
 
       await inventoryProvider.fetchItems(refresh: true);
@@ -280,27 +290,23 @@ class _StockActionDialogState extends State<StockActionDialog> {
       debugPrint('❌ StockAction failed: $e');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Action failed')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Action failed')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
-
-
-
-
-
   void _showItemDetails(ItemModel item) {
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(item.name),
-        content: Text("Total Stock: ${item.totalStock}"),
-      ),
+      builder:
+          (_) => AlertDialog(
+            title: Text(item.name),
+            content: Text("Total Stock: ${item.totalStock}"),
+          ),
     );
   }
 
@@ -349,9 +355,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(25),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
       child: Container(
         width: 650,
         padding: const EdgeInsets.all(24),
@@ -410,6 +414,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
                     focusNode: _scanFocus,
                     autofocus: true,
                     textAlignVertical: TextAlignVertical.center,
+                    textCapitalization: TextCapitalization.characters,
                     onChanged: _onScanTextChanged,
                     decoration: const InputDecoration(
                       border: InputBorder.none,
@@ -466,62 +471,149 @@ class _StockActionDialogState extends State<StockActionDialog> {
             Container(
               height: 220,
               decoration: BoxDecoration(
-
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: _filteredItems.isEmpty
-                  ? const Center(
-                child: Text(
-                  "No items found",
-                  style: TextStyle(color: Colors.black87),
-                ),
-              )
-                  : ListView.builder(
-                itemCount: _filteredItems.length,
-                itemBuilder: (_, index) {
-                  final item = _filteredItems[index];
-                  final selected = _selectedItem?.id == item.id;
-
-                  return InkWell(
-                    onTap: () => _selectItem(item),
-                    child: Container(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: selected
-                            ? Colors.green.withOpacity(0.15)
-                            : Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selected
-                              ? AppColors.primaryGreen
-                              : Colors.transparent,
+              child:
+                  _filteredItems.isEmpty
+                      ? const Center(
+                        child: Text(
+                          "No items found",
+                          style: TextStyle(color: Colors.black87),
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            item.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color:AppColors.primaryGreen,
+                      )
+                      : ListView.builder(
+                        itemCount: _filteredItems.length,
+                        itemBuilder: (_, index) {
+                          final item = _filteredItems[index];
+                          final selected = _selectedItem?.id == item.id;
+
+                          return InkWell(
+                            onTap: () => _selectItem(item),
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color:
+                                    selected
+                                        ? Colors.green.withOpacity(0.15)
+                                        : Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color:
+                                      selected
+                                          ? AppColors.primaryGreen
+                                          : Colors.transparent,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppColors.primaryGreen,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        "${item.totalStock} pcs",
+                                        style: const TextStyle(
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                      // 🗑️ DELETE ICON (View Mode + Admin Only)
+                                      if (widget.mode == StockActionMode.view &&
+                                          context
+                                              .read<AccountsProvider>()
+                                              .isAdmin) ...[
+                                        const SizedBox(width: 10),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete_outline,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () async {
+                                            // 🔒 PASSWORD CONFIRMATION
+                                            final confirmed = await showDialog<
+                                              bool
+                                            >(
+                                              context: context,
+                                              builder:
+                                                  (
+                                                    _,
+                                                  ) => PasswordConfirmationDialog(
+                                                    title:
+                                                        "Delete ${item.name}?",
+                                                    message:
+                                                        "This action cannot be undone. Enter your password to confirm.",
+                                                    confirmLabel: "Delete",
+                                                    confirmColor: Colors.red,
+                                                  ),
+                                            );
+
+                                            if (confirmed == true) {
+                                              if (!mounted) return;
+                                              // Call delete logic manually since we are bypassing _selectItem -> _confirmItem flow for this button
+                                              // Actually better to reuse _confirmItem logic but force mode to delete?
+                                              // Or just implement it here cleanly.
+
+                                              // Let's use the controller directly here to keep it simple as this is a specific action button
+                                              setState(
+                                                () => _isSubmitting = true,
+                                              );
+                                              try {
+                                                final user =
+                                                    context
+                                                        .read<
+                                                          AccountsProvider
+                                                        >()
+                                                        .currentUser;
+                                                await InventoryController()
+                                                    .deleteItem(
+                                                      itemId: item.id,
+                                                      itemName: item.name,
+                                                      user: user,
+                                                    );
+                                                await context
+                                                    .read<InventoryProvider>()
+                                                    .fetchItems(refresh: true);
+                                                if (mounted) {
+                                                  ScaffoldMessenger.of(
+                                                    context,
+                                                  ).showSnackBar(
+                                                    const SnackBar(
+                                                      content: Text(
+                                                        'Item deleted successfully',
+                                                      ),
+                                                    ),
+                                                  );
+                                                }
+                                              } catch (e) {
+                                                debugPrint("Delete error: $e");
+                                              } finally {
+                                                if (mounted)
+                                                  setState(
+                                                    () => _isSubmitting = false,
+                                                  );
+                                              }
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          Text(
-                            "${item.totalStock} pcs",
-                            style: const TextStyle(
-                              color: Colors.black54,
-                            ),
-                          ),
-                        ],
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
-              ),
             ),
 
             const SizedBox(height: 16),
@@ -550,6 +642,4 @@ class _StockActionDialogState extends State<StockActionDialog> {
       child: child,
     );
   }
-
-
 }

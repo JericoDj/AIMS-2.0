@@ -15,7 +15,7 @@ class OfflineAddItemDialog extends StatefulWidget {
 
 class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
   final _nameCtrl = TextEditingController();
-  final _qtyCtrl = TextEditingController();
+  final _qtyCtrl = TextEditingController(text: "0");
 
   ItemCategory? _category;
   DateTime? _expiryDate;
@@ -34,7 +34,7 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
 
     final messenger = ScaffoldMessenger.maybeOf(context);
 
-    final name = _nameCtrl.text.trim();
+    final name = _nameCtrl.text.trim().toUpperCase();
     final quantity = int.tryParse(_qtyCtrl.text);
 
     if (name.isEmpty ||
@@ -83,9 +83,7 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
 
       return true;
     } catch (e) {
-      messenger?.showSnackBar(
-        SnackBar(content: Text(e.toString())),
-      );
+      messenger?.showSnackBar(SnackBar(content: Text(e.toString())));
       return false;
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -118,6 +116,7 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
               DialogTextField(
                 label: "Item Name",
                 controller: _nameCtrl,
+                textCapitalization: TextCapitalization.characters,
               ),
 
               const SizedBox(height: 12),
@@ -128,15 +127,19 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
                   labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
-                items: ItemCategory.values.map((cat) {
-                  return DropdownMenuItem(
-                    value: cat,
-                    child: Text(cat.label),
-                  );
-                }).toList(),
-                onChanged: _loading ? null : (val) {
-                  setState(() => _category = val);
-                },
+                items:
+                    ItemCategory.values.map((cat) {
+                      return DropdownMenuItem(
+                        value: cat,
+                        child: Text(cat.label),
+                      );
+                    }).toList(),
+                onChanged:
+                    _loading
+                        ? null
+                        : (val) {
+                          setState(() => _category = val);
+                        },
               ),
 
               const SizedBox(height: 12),
@@ -150,22 +153,24 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
               const SizedBox(height: 12),
 
               InkWell(
-                onTap: _loading
-                    ? null
-                    : () async {
-                  final picked = await showDatePicker(
-                    context: context,
-                    useRootNavigator: false,
-                    firstDate: DateTime.now(),
-                    lastDate:
-                    DateTime.now().add(const Duration(days: 365 * 10)),
-                    initialDate: DateTime.now(),
-                  );
+                onTap:
+                    _loading
+                        ? null
+                        : () async {
+                          final picked = await showDatePicker(
+                            context: context,
+                            useRootNavigator: false,
+                            firstDate: DateTime.now(),
+                            lastDate: DateTime.now().add(
+                              const Duration(days: 365 * 10),
+                            ),
+                            initialDate: DateTime.now(),
+                          );
 
-                  if (picked != null && mounted) {
-                    setState(() => _expiryDate = picked);
-                  }
-                },
+                          if (picked != null && mounted) {
+                            setState(() => _expiryDate = picked);
+                          }
+                        },
                 child: InputDecorator(
                   decoration: const InputDecoration(
                     labelText: 'Expiry Date',
@@ -186,7 +191,7 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
                 children: [
                   TextButton(
                     onPressed:
-                    _loading ? null : () => Navigator.of(context).pop(),
+                        _loading ? null : () => Navigator.of(context).pop(),
                     child: const Text("Cancel"),
                   ),
                   const SizedBox(width: 10),
@@ -197,19 +202,23 @@ class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    onPressed: _loading ? null : () async {
-                      final success = await _save();
-                      if (success && mounted) {
-                        Navigator.of(context).pop();
-                      }
-                    },
-                    child: _loading
-                        ? const SizedBox(
-                      height: 16,
-                      width: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                        : const Text("Save"),
+                    onPressed:
+                        _loading
+                            ? null
+                            : () async {
+                              final success = await _save();
+                              if (success && mounted) {
+                                Navigator.of(context).pop();
+                              }
+                            },
+                    child:
+                        _loading
+                            ? const SizedBox(
+                              height: 16,
+                              width: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                            : const Text("Save"),
                   ),
                 ],
               ),

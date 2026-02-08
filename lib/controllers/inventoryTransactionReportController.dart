@@ -18,10 +18,11 @@ class InventoryTransactionReportController {
   static const int expiryWarningDays = 30;
 
   static Future<void> generateInventoryReport(
-      BuildContext context, {
-        required DateTime start,
-        required DateTime end,
-      }) async {
+    BuildContext context, {
+    required DateTime start,
+    required DateTime end,
+    String? category, // 🆕 Added category
+  }) async {
     final inventoryProvider = context.read<InventoryProvider>();
     final items = inventoryProvider.items;
 
@@ -29,27 +30,42 @@ class InventoryTransactionReportController {
     final dateFormat = DateFormat('yyyy-MM-dd');
 
     // ================= FILTERS =================
-    final allItems = items;
+    // 🧹 Helper to normalize category
+    String normalizeCategory(String input) {
+      final v = input.toLowerCase();
+      if (v == "pgb") return "PGB";
+      if (v == "bmcpgb") return "BMC";
+      if (v == "dsbpgb") return "DSB";
+      if (v == "bmc") return "BMC";
+      if (v == "dsb") return "DSB";
+      return input.toUpperCase();
+    }
 
-    final lowStockItems = items.where((i) => i.isLowStock).toList();
+    // 🔍 Filter by category if specified
+    final filteredItems =
+        (category != null && category != 'All')
+            ? items
+                .where((i) => normalizeCategory(i.category) == category)
+                .toList()
+            : items;
 
-    final outOfStockItems = items.where((i) => i.isOutOfStock).toList();
+    final allItems = filteredItems;
+
+    final lowStockItems = filteredItems.where((i) => i.isLowStock).toList();
+
+    final outOfStockItems = filteredItems.where((i) => i.isOutOfStock).toList();
 
     final accountProvider = context.read<AccountsProvider>();
 
-    final generatedBy =
-        accountProvider.currentUser?.fullName ?? 'Unknown User';
+    final generatedBy = accountProvider.currentUser?.fullName ?? 'Unknown User';
 
-
-
-    final nearlyExpiryItems = items.where((item) {
-
-
-      final expiry = item.nearestExpiry;
-      if (expiry == null) return false;
-      final daysLeft = expiry.difference(now).inDays;
-      return daysLeft >= 0 && daysLeft <= expiryWarningDays;
-    }).toList();
+    final nearlyExpiryItems =
+        filteredItems.where((item) {
+          final expiry = item.nearestExpiry;
+          if (expiry == null) return false;
+          final daysLeft = expiry.difference(now).inDays;
+          return daysLeft >= 0 && daysLeft <= expiryWarningDays;
+        }).toList();
 
     // ================= PDF SETUP =================
     final font = await PdfGoogleFonts.robotoRegular();
@@ -57,7 +73,19 @@ class InventoryTransactionReportController {
 
     final pdf = pw.Document();
 
+    // 🕵️ Determine if we should show the Category column
+    final showCategoryColumn = category == null || category == 'All';
+
     pw.Widget buildTable(String title, List<ItemModel> data) {
+      // 🏗️ Build Headers
+      final headers = [
+        'Item',
+        if (showCategoryColumn) 'Category', // 🙈 Hide if filtered
+        'Total Stock',
+        'Low Stock Threshold',
+        'Nearest Expiry',
+      ];
+
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -68,33 +96,27 @@ class InventoryTransactionReportController {
           pw.SizedBox(height: 6),
           data.isEmpty
               ? pw.Text(
-            'No records',
-            style: pw.TextStyle(font: font, fontSize: 10),
-          )
+                'No records',
+                style: pw.TextStyle(font: font, fontSize: 10),
+              )
               : pw.Table.fromTextArray(
-            headerStyle:
-            pw.TextStyle(font: boldFont, fontSize: 10),
-            cellStyle:
-            pw.TextStyle(font: font, fontSize: 9),
-            headers: const [
-              'Item',
-              'Category',
-              'Total Stock',
-              'Low Stock Threshold',
-              'Nearest Expiry',
-            ],
-            data: data.map((item) {
-              return [
-                item.name,
-                item.category,
-                item.totalStock.toString(),
-                item.resolvedLowStockThreshold.toString(),
-                item.nearestExpiry == null
-                    ? '-'
-                    : dateFormat.format(item.nearestExpiry!),
-              ];
-            }).toList(),
-          ),
+                headerStyle: pw.TextStyle(font: boldFont, fontSize: 10),
+                cellStyle: pw.TextStyle(font: font, fontSize: 9),
+                headers: headers,
+                data:
+                    data.map((item) {
+                      return [
+                        item.name,
+                        if (showCategoryColumn)
+                          item.category, // 🙈 Hide if filtered
+                        item.totalStock.toString(),
+                        item.resolvedLowStockThreshold.toString(),
+                        item.nearestExpiry == null
+                            ? '-'
+                            : dateFormat.format(item.nearestExpiry!),
+                      ];
+                    }).toList(),
+              ),
           pw.SizedBox(height: 16),
         ],
       );
@@ -104,66 +126,65 @@ class InventoryTransactionReportController {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        build: (_) => [
-          pw.Text(
-            'Inventory Report',
-            style: pw.TextStyle(font: boldFont, fontSize: 22),
-          ),
+        build:
+            (_) => [
+              pw.Text(
+                'Inventory Report${category != null && category != "All" ? " - $category" : ""}', // 🏷️ Show category in title
+                style: pw.TextStyle(font: boldFont, fontSize: 22),
+              ),
 
+              pw.SizedBox(height: 4),
 
-          pw.SizedBox(height: 4),
+              pw.Text(
+                'Report Generated by: $generatedBy',
+                style: pw.TextStyle(
+                  font: font,
+                  fontSize: 11,
+                  color: PdfColors.grey700,
+                ),
+              ),
+              pw.SizedBox(height: 6),
+              pw.Text(
+                'From ${dateFormat.format(start)} to ${dateFormat.format(end)}',
+                style: pw.TextStyle(font: font, fontSize: 12),
+              ),
+              pw.SizedBox(height: 20),
 
-          pw.Text(
-            'Report Generated by: $generatedBy',
-            style: pw.TextStyle(
-              font: font,
-              fontSize: 11,
-              color: PdfColors.grey700,
-            ),
-          ),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            'From ${dateFormat.format(start)} to ${dateFormat.format(end)}',
-            style: pw.TextStyle(font: font, fontSize: 12),
-          ),
-          pw.SizedBox(height: 20),
+              // -------- SUMMARY --------
+              pw.Text(
+                'Summary',
+                style: pw.TextStyle(font: boldFont, fontSize: 16),
+              ),
+              pw.SizedBox(height: 8),
+              pw.Bullet(
+                text: 'Total Items: ${allItems.length}',
+                style: pw.TextStyle(font: font),
+              ),
+              pw.Bullet(
+                text: 'Low Stock Items: ${lowStockItems.length}',
+                style: pw.TextStyle(font: font),
+              ),
+              pw.Bullet(
+                text: 'Out of Stock Items: ${outOfStockItems.length}',
+                style: pw.TextStyle(font: font),
+              ),
+              pw.Bullet(
+                text: 'Nearly Expiry Items: ${nearlyExpiryItems.length}',
+                style: pw.TextStyle(font: font),
+              ),
 
-          // -------- SUMMARY --------
-          pw.Text(
-            'Summary',
-            style: pw.TextStyle(font: boldFont, fontSize: 16),
-          ),
-          pw.SizedBox(height: 8),
-          pw.Bullet(
-            text: 'Total Items: ${allItems.length}',
-            style: pw.TextStyle(font: font),
-          ),
-          pw.Bullet(
-            text: 'Low Stock Items: ${lowStockItems.length}',
-            style: pw.TextStyle(font: font),
-          ),
-          pw.Bullet(
-            text: 'Out of Stock Items: ${outOfStockItems.length}',
-            style: pw.TextStyle(font: font),
-          ),
-          pw.Bullet(
-            text: 'Nearly Expiry Items: ${nearlyExpiryItems.length}',
-            style: pw.TextStyle(font: font),
-          ),
+              pw.SizedBox(height: 20),
 
-          pw.SizedBox(height: 20),
-
-          // -------- TABLES --------
-          buildTable('All Items', allItems),
-          buildTable('Low Stock Items', lowStockItems),
-          buildTable('Out of Stock Items', outOfStockItems),
-          buildTable('Nearly Expiry Items', nearlyExpiryItems),
-        ],
+              // -------- TABLES --------
+              buildTable('All Items', allItems),
+              buildTable('Low Stock Items', lowStockItems),
+              buildTable('Out of Stock Items', outOfStockItems),
+              buildTable('Nearly Expiry Items', nearlyExpiryItems),
+            ],
       ),
     );
 
-    final pdfBytes =
-    Uint8List.fromList(await pdf.save());
+    final pdfBytes = Uint8List.fromList(await pdf.save());
 
     _showPreviewDialog(
       context,
@@ -174,113 +195,120 @@ class InventoryTransactionReportController {
 
   // ================= PREVIEW =================
   static void _showPreviewDialog(
-      BuildContext context,
-      Uint8List pdfBytes,
-      String fileName,
-      ) {
+    BuildContext context,
+    Uint8List pdfBytes,
+    String fileName,
+  ) {
     showDialog(
       context: context,
-      builder: (_) => Dialog(
-        insetPadding: const EdgeInsets.all(20),
-        child: SizedBox(
-          width: 1000,
-          height: 650,
-          child: Column(
-            children: [
-              // ================= HEADER =================
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: Colors.grey.shade200,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Inventory Report Preview',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+      builder:
+          (_) => Dialog(
+            insetPadding: const EdgeInsets.all(20),
+            child: SizedBox(
+              width: 1000,
+              height: 650,
+              child: Column(
+                children: [
+                  // ================= HEADER =================
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
                     ),
-
-          Row(
-            children: [
-              TextButton.icon(
-                icon: const Icon(Icons.download),
-                label: const Text('Save'),
-                onPressed: () async {
-                  try {
-                    // 1️⃣ Ask WHERE to save
-                    final String? folderPath =
-                    await FilePicker.platform.getDirectoryPath(
-                      dialogTitle: 'Choose where to save the report',
-                    );
-
-                    if (folderPath == null) return; // user cancelled
-
-                    // 2️⃣ Create file path
-                    final filePath = '$folderPath/$fileName';
-
-                    final file = File(filePath);
-
-                    // 3️⃣ Save file
-                    await file.writeAsBytes(pdfBytes);
-
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
-
-                    // 4️⃣ Success feedback
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Saved to:\n$filePath'),
-                        action: SnackBarAction(
-                          label: 'Open',
-                          onPressed: () => _openInExplorer(filePath),
+                    color: Colors.grey.shade200,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Inventory Report Preview',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                    );
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Failed to save file: $e')),
-                    );
-                  }
-                },
-              ),
 
-              TextButton(
-                child: const Text('Close'),
-                onPressed: () => Navigator.pop(context),
+                        Row(
+                          children: [
+                            TextButton.icon(
+                              icon: const Icon(Icons.download),
+                              label: const Text('Save'),
+                              onPressed: () async {
+                                try {
+                                  // 1️⃣ Ask WHERE to save
+                                  final String? folderPath = await FilePicker
+                                      .platform
+                                      .getDirectoryPath(
+                                        dialogTitle:
+                                            'Choose where to save the report',
+                                      );
+
+                                  if (folderPath == null)
+                                    return; // user cancelled
+
+                                  // 2️⃣ Create file path
+                                  final filePath = '$folderPath/$fileName';
+
+                                  final file = File(filePath);
+
+                                  // 3️⃣ Save file
+                                  await file.writeAsBytes(pdfBytes);
+
+                                  if (!context.mounted) return;
+                                  Navigator.pop(context);
+
+                                  // 4️⃣ Success feedback
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Saved to:\n$filePath'),
+                                      action: SnackBarAction(
+                                        label: 'Open',
+                                        onPressed:
+                                            () => _openInExplorer(filePath),
+                                      ),
+                                    ),
+                                  );
+                                } catch (e) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to save file: $e'),
+                                    ),
+                                  );
+                                }
+                              },
+                            ),
+
+                            TextButton(
+                              child: const Text('Close'),
+                              onPressed: () => Navigator.pop(context),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // ================= PDF PREVIEW =================
+                  Expanded(
+                    child: PdfPreview(
+                      build: (_) async => pdfBytes,
+
+                      // ❌ disable built-in controls
+                      allowPrinting: false,
+                      allowSharing: false,
+                      canChangeOrientation: false,
+                      canChangePageFormat: false,
+                      canDebug: false,
+
+                      // ❌ hide toolbar completely
+                      actions: const [],
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-
-
-                  ],
-                ),
-              ),
-
-              // ================= PDF PREVIEW =================
-              Expanded(
-                child: PdfPreview(
-                  build: (_) async => pdfBytes,
-
-                  // ❌ disable built-in controls
-                  allowPrinting: false,
-                  allowSharing: false,
-                  canChangeOrientation: false,
-                  canChangePageFormat: false,
-                  canDebug: false,
-
-                  // ❌ hide toolbar completely
-                  actions: const [],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
-
 }
 
 void _openInExplorer(String path) async {
@@ -288,21 +316,11 @@ void _openInExplorer(String path) async {
   if (!file.existsSync()) return;
 
   if (Platform.isWindows) {
-    await Process.run(
-      'explorer',
-      ['/select,', file.path],
-      runInShell: true,
-    );
+    await Process.run('explorer', ['/select,', file.path], runInShell: true);
   } else if (Platform.isMacOS) {
-    await Process.run(
-      'open',
-      ['-R', file.path],
-    );
+    await Process.run('open', ['-R', file.path]);
   } else if (Platform.isLinux) {
-    await Process.run(
-      'xdg-open',
-      [file.parent.path],
-    );
+    await Process.run('xdg-open', [file.parent.path]);
   }
 }
 
@@ -313,23 +331,12 @@ Future<void> openInFileExplorer(String filePath) async {
 
   if (Platform.isWindows) {
     // Opens Explorer and selects the file
-    await Process.run(
-      'explorer',
-      ['/select,', file.path],
-      runInShell: true,
-    );
+    await Process.run('explorer', ['/select,', file.path], runInShell: true);
   } else if (Platform.isMacOS) {
     // Opens Finder and selects the file
-    await Process.run(
-      'open',
-      ['-R', file.path],
-    );
+    await Process.run('open', ['-R', file.path]);
   } else if (Platform.isLinux) {
     // Opens containing folder
-    await Process.run(
-      'xdg-open',
-      [file.parent.path],
-    );
+    await Process.run('xdg-open', [file.parent.path]);
   }
 }
-
