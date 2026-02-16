@@ -5,8 +5,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
 
 import '../models/AccountModel.dart';
-import '../models/BarcodePngResult.dart';
-import '../models/SyncRequestModel.dart';
+
 import '../models/TransactionModel.dart';
 import 'barCodeController.dart';
 import 'barCodeDecoderController.dart';

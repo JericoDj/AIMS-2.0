@@ -26,8 +26,9 @@ class LandingPage extends StatelessWidget {
 
           /// CONTENT
           SafeArea(
-            child: Center(
+
               child: SingleChildScrollView(
+                child: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [

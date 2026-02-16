@@ -17,13 +17,11 @@ import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'firebase_options.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // 🔐 INIT WINDOW MANAGER
   await windowManager.ensureInitialized();
@@ -32,9 +30,9 @@ Future<void> main() async {
     const WindowOptions(
       minimumSize: Size(1024, 768),
       center: true,
-      titleBarStyle: TitleBarStyle.hidden, // optional but recommended
+      // titleBarStyle: TitleBarStyle.hidden, // optional but recommended
     ),
-        () async {
+    () async {
       await windowManager.show();
       await windowManager.focus();
 
@@ -42,7 +40,6 @@ Future<void> main() async {
       await windowManager.maximize();
     },
   );
-
 
   // Windows-safe directory
   final supportDir = await getApplicationSupportDirectory();
@@ -79,10 +76,6 @@ Future<void> main() async {
   runApp(const MyApp());
 }
 
-
-
-
-
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
@@ -94,8 +87,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => InventoryProvider()),
 
         ChangeNotifierProxyProvider<AccountsProvider, TransactionsProvider>(
-          create: (context) =>
-              TransactionsProvider(context.read<AccountsProvider>()),
+          create:
+              (context) =>
+                  TransactionsProvider(context.read<AccountsProvider>()),
           update: (context, accountsProvider, previous) {
             previous?.updateAccountsProvider(accountsProvider);
             return previous ?? TransactionsProvider(accountsProvider);
@@ -106,25 +100,22 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider.value(
           value: OfflineTransactionsProvider.instance,
         ),
-        ChangeNotifierProvider(
-          create: (_) => OfflineInventoryProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => OfflineInventoryProvider()),
         ChangeNotifierProxyProvider<AccountsProvider, SyncRequestProvider>(
-          create: (context) =>
-              SyncRequestProvider(context.read<AccountsProvider>()),
-          update: (context, accounts, previous) =>
-          previous ?? SyncRequestProvider(accounts),
+          create:
+              (context) =>
+                  SyncRequestProvider(context.read<AccountsProvider>()),
+          update:
+              (context, accounts, previous) =>
+                  previous ?? SyncRequestProvider(accounts),
         ),
-        ChangeNotifierProvider(
-          create: (_) => NotificationProvider(),
-        ),
+        ChangeNotifierProvider(create: (_) => NotificationProvider()),
       ],
       child: Builder(
         builder: (context) {
-
           const Color kPrimaryGreen = Color(0xFF2E7D32);
-          const Color kLightGreen   = Color(0xFFD0E8B5);
-          const Color kBorderGreen  = Color(0xFF43A047);
+          const Color kLightGreen = Color(0xFFD0E8B5);
+          const Color kBorderGreen = Color(0xFF43A047);
           // ✅ SAFE: provider exists here
           final accountsProvider = context.read<AccountsProvider>();
 
@@ -177,9 +168,7 @@ class MyApp extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                 ),
 
-                hintStyle: TextStyle(
-                  color: Colors.grey.shade600,
-                ),
+                hintStyle: TextStyle(color: Colors.grey.shade600),
 
                 prefixIconColor: kPrimaryGreen,
 
@@ -193,10 +182,7 @@ class MyApp extends StatelessWidget {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: kPrimaryGreen,
-                    width: 2,
-                  ),
+                  borderSide: const BorderSide(color: kPrimaryGreen, width: 2),
                 ),
                 errorBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -210,7 +196,10 @@ class MyApp extends StatelessWidget {
                   backgroundColor: kPrimaryGreen,
                   foregroundColor: Colors.white,
                   elevation: 2,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -239,7 +228,6 @@ class MyApp extends StatelessWidget {
               ),
 
               // ================= DIALOG =================
-
 
               // ================= DATE PICKER =================
               datePickerTheme: DatePickerThemeData(
@@ -273,7 +261,6 @@ class MyApp extends StatelessWidget {
                 ),
               ),
 
-
               // ================= CHIP =================
               chipTheme: ChipThemeData(
                 backgroundColor: kLightGreen,
@@ -284,9 +271,7 @@ class MyApp extends StatelessWidget {
               ),
 
               // ================= ICON =================
-              iconTheme: const IconThemeData(
-                color: kPrimaryGreen,
-              ),
+              iconTheme: const IconThemeData(color: kPrimaryGreen),
             ),
             routerConfig: createRouter(accountsProvider),
           );
@@ -295,4 +280,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-
