@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../../dialogs/create_account_dialog.dart';
 import '../../models/AccountModel.dart';
 import '../../providers/accounts_provider.dart';
-import 'dialogs/PasswordConfirmationDialog.dart';
+import 'dialogs/ConfirmationDialog.dart';
 
 class ManageAccountsPage extends StatelessWidget {
   const ManageAccountsPage({super.key});
@@ -141,11 +141,11 @@ class ManageAccountsPage extends StatelessWidget {
     AccountsProvider provider,
     Account account,
   ) async {
-    // 🔒 PASSWORD CONFIRMATION DIALOG
+    // 🗑️ SIMPLE CONFIRMATION DIALOG
     final confirmed = await showDialog<bool>(
       context: context,
       builder:
-          (_) => PasswordConfirmationDialog(
+          (_) => ConfirmationDialog(
             title: "Remove Account?",
             message:
                 "Are you sure you want to remove ${account.fullName}? This cannot be undone.",
@@ -157,8 +157,8 @@ class ManageAccountsPage extends StatelessWidget {
     if (confirmed != true) return;
 
     try {
-      // ✅ We don't need to pass password anymore because PasswordConfirmationDialog
-      // ALREADY verified the admin's identity via re-auth.
+      // ✅ We don't need to pass password anymore because ConfirmationDialog
+      // replaces the password-based confirmation flow.
       await provider.removeAccount(account.id);
 
       if (context.mounted) {

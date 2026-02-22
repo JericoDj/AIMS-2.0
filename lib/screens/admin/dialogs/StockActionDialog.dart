@@ -9,7 +9,7 @@ import '../../../providers/items_provider.dart';
 import '../../../providers/notification_provider.dart';
 import '../../../utils/MyColors.dart';
 import '../../../utils/enums/stock_actions_enum.dart';
-import 'PasswordConfirmationDialog.dart';
+import 'ConfirmationDialog.dart';
 
 class StockActionDialog extends StatefulWidget {
   final StockActionMode mode;
@@ -209,14 +209,14 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
       // ================= DELETE (FULL ITEM) =================
       if (widget.mode == StockActionMode.delete) {
-        // 🔒 PASSWORD CONFIRMATION FIRST
+        // 🗑️ SIMPLE CONFIRMATION DIALOG
         final confirmed = await showDialog<bool>(
           context: context,
           builder:
-              (_) => PasswordConfirmationDialog(
+              (_) => const ConfirmationDialog(
                 title: "Delete Item?",
                 message:
-                    "This action cannot be undone. Enter your password to confirm.",
+                    "This action cannot be undone. Are you sure you want to delete this item?",
                 confirmLabel: "Delete Forever",
                 confirmColor: Colors.red,
               ),
@@ -539,19 +539,17 @@ class _StockActionDialogState extends State<StockActionDialog> {
                                             color: Colors.red,
                                           ),
                                           onPressed: () async {
-                                            // 🔒 PASSWORD CONFIRMATION
+                                            // 🗑️ SIMPLE CONFIRMATION DIALOG
                                             final confirmed = await showDialog<
                                               bool
                                             >(
                                               context: context,
                                               builder:
-                                                  (
-                                                    _,
-                                                  ) => PasswordConfirmationDialog(
+                                                  (_) => ConfirmationDialog(
                                                     title:
                                                         "Delete ${item.name}?",
                                                     message:
-                                                        "This action cannot be undone. Enter your password to confirm.",
+                                                        "This action cannot be undone. Are you sure you want to delete this item?",
                                                     confirmLabel: "Delete",
                                                     confirmColor: Colors.red,
                                                   ),
