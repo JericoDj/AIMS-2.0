@@ -1,20 +1,15 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 
 import '../models/AccountModel.dart';
 import '../screens/user/StorageKeys.dart';
 import '../utils/enums/role_enum.dart';
 
 class AccountsProvider extends ChangeNotifier {
-
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   // final GetStorage _box = GetStorage();
@@ -39,9 +34,6 @@ class AccountsProvider extends ChangeNotifier {
     fetchUsersFromFirestore();
   }
 
-
-
-
   void setCurrentUser(Account account) {
     _currentUser = account;
     _saveCurrentUser(account);
@@ -50,16 +42,12 @@ class AccountsProvider extends ChangeNotifier {
 
   // ================= CURRENT USER STORAGE =================
   void _loadCurrentUser() {
-
     print("loading current user");
     final data = _box.read(_currentUserKey);
 
     print(data);
     if (data != null) {
-
-      _currentUser = Account.fromMap(
-        Map<String, dynamic>.from(data),
-      );
+      _currentUser = Account.fromMap(Map<String, dynamic>.from(data));
       notifyListeners();
     } else {
       print("no current user found in storage");
@@ -83,11 +71,9 @@ class AccountsProvider extends ChangeNotifier {
     }
   }
 
-
   void _clearCurrentUser() {
     _box.remove(_currentUserKey);
   }
-
 
   Future<void> reauthenticateAdmin(String password) async {
     final user = _auth.currentUser;
@@ -96,35 +82,43 @@ class AccountsProvider extends ChangeNotifier {
       throw Exception("No authenticated admin");
     }
 
+    // Re-authenticate to verify password
     final credential = EmailAuthProvider.credential(
       email: user.email!,
       password: password,
     );
 
-    await user.reauthenticateWithCredential(credential);
+    debugPrint('🔐 Starting re-authentication...');
+    await user
+        .reauthenticateWithCredential(credential)
+        .timeout(
+          const Duration(seconds: 15),
+          onTimeout: () => throw Exception("Authentication timed out (15s)"),
+        );
+    debugPrint('✅ Re-authentication successful');
   }
-
 
   // ================= FIRESTORE USERS =================
   Future<void> fetchUsersFromFirestore() async {
     try {
       final snapshot = await _firestore.collection('users').get();
 
-      final users = snapshot.docs.map((doc) {
-        final data = doc.data();
-        final account = Account.fromMap(data);
+      final users =
+          snapshot.docs.map((doc) {
+            final data = doc.data();
+            final account = Account.fromMap(data);
 
-        // 🖨️ PRINT EACH USER (RAW)
-        debugPrint('👤 USER DOCUMENT');
-        debugPrint('• id        : ${account.id}');
-        debugPrint('• fullName  : ${account.fullName}');
-        debugPrint('• email     : ${account.email}');
-        debugPrint('• role      : ${account.role}');
-        debugPrint('• createdAt : ${account.createdAt}');
-        debugPrint('---------------------------');
+            // 🖨️ PRINT EACH USER (RAW)
+            debugPrint('👤 USER DOCUMENT');
+            debugPrint('• id        : ${account.id}');
+            debugPrint('• fullName  : ${account.fullName}');
+            debugPrint('• email     : ${account.email}');
+            debugPrint('• role      : ${account.role}');
+            debugPrint('• createdAt : ${account.createdAt}');
+            debugPrint('---------------------------');
 
-        return account;
-      }).toList();
+            return account;
+          }).toList();
 
       _accounts
         ..clear()
@@ -141,7 +135,7 @@ class AccountsProvider extends ChangeNotifier {
       debugPrint('✅ TOTAL USERS FETCHED: ${_accounts.length}');
       debugPrint(
         'Admins: ${_accounts.where((u) => u.role == UserRole.admin).length}, '
-            'Users: ${_accounts.where((u) => u.role == UserRole.user).length}',
+        'Users: ${_accounts.where((u) => u.role == UserRole.user).length}',
       );
 
       notifyListeners();
@@ -150,11 +144,6 @@ class AccountsProvider extends ChangeNotifier {
       debugPrintStack(stackTrace: s);
     }
   }
-
-
-
-
-
 
   // ================= AUTH =================
   Future<void> loginWithEmail({
@@ -194,7 +183,6 @@ class AccountsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
   void logout() {
     // 🔥 Clear in-memory session
     _currentUser = null;
@@ -206,7 +194,6 @@ class AccountsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
   // ================= CREATE ACCOUNT =================
   Future<void> createAccount({
     required String fullName,
@@ -214,13 +201,13 @@ class AccountsProvider extends ChangeNotifier {
     required UserRole role,
     required String password,
   }) async {
-
     // ================= ADMIN LIMIT CHECK =================
     if (role == UserRole.admin) {
-      final adminSnap = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: UserRole.admin.name)
-          .get();
+      final adminSnap =
+          await _firestore
+              .collection('users')
+              .where('role', isEqualTo: UserRole.admin.name)
+              .get();
 
       if (adminSnap.docs.length >= 5) {
         throw Exception("Maximum of 5 admin accounts allowed");
@@ -258,22 +245,17 @@ class AccountsProvider extends ChangeNotifier {
       );
 
       // ================= SAVE TO FIRESTORE =================
-      await _firestore
-          .collection('users')
-          .doc(uid)
-          .set(account.toMap());
+      await _firestore.collection('users').doc(uid).set(account.toMap());
 
       // ================= UPDATE LOCAL STATE =================
       _accounts.add(account);
       notifyListeners();
-
     } finally {
       // 🧹 CLEANUP (VERY IMPORTANT)
       await secondaryAuth.signOut();
       await secondaryApp.delete();
     }
   }
-
 
   // ================= PASSWORD RESET =================
   Future<void> sendPasswordReset(String email) async {
@@ -283,9 +265,9 @@ class AccountsProvider extends ChangeNotifier {
   // ================= REMOVE ACCOUNT =================
 
   Future<void> removeAccount(
-      String id, {
-        String? adminPassword, // kept only for UI confirmation
-      }) async {
+    String id, {
+    String? adminPassword, // kept only for UI confirmation
+  }) async {
     // 🔐 LOAD CURRENT USER FROM GETSTORAGE
     final currentUser = _getCurrentUserFromStorage();
 
@@ -298,12 +280,11 @@ class AccountsProvider extends ChangeNotifier {
     }
 
     final target = _accounts.firstWhere(
-          (a) => a.id == id,
+      (a) => a.id == id,
       orElse: () => throw Exception("Account not found"),
     );
 
-    final adminCount =
-        _accounts.where((a) => a.role == UserRole.admin).length;
+    final adminCount = _accounts.where((a) => a.role == UserRole.admin).length;
 
     if (target.role == UserRole.admin && adminCount <= 1) {
       throw Exception("Cannot remove the last admin account");
@@ -315,27 +296,58 @@ class AccountsProvider extends ChangeNotifier {
     }
 
     // ✅ DO NOT FORCE REFRESH
+    debugPrint('🎫 Fetching admin ID token...');
     final idToken = await adminUser.getIdToken();
 
-    final response = await http.post(
-      Uri.parse("https://deleteuseraccount-tekpv2phba-uc.a.run.app"),
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": "Bearer $idToken",
-      },
-      body: jsonEncode({ "uid": id }),
+    debugPrint(
+      '🚀 Sending delete request (Dio) to Cloud Function for UID: $id',
+    );
+    final dio = Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 15),
+      ),
     );
 
-    if (response.statusCode != 200) {
-      throw Exception("Failed to delete user: ${response.body}");
+    try {
+      final response = await dio.post(
+        "https://deleteuseraccount-tekpv2phba-uc.a.run.app",
+        options: Options(
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer $idToken",
+          },
+        ),
+        data: {"uid": id},
+      );
+
+      debugPrint('📡 Response Status: ${response.statusCode}');
+      debugPrint('📡 Response Body: ${response.data}');
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to delete user: ${response.data}");
+      }
+    } on DioException catch (e) {
+      debugPrint('❌ Dio Error: ${e.type} - ${e.message}');
+      debugPrint('❌ Dio Response: ${e.response?.data}');
+
+      String errorMessage = "Network error while deleting user.";
+      if (e.type == DioExceptionType.connectionTimeout ||
+          e.type == DioExceptionType.receiveTimeout) {
+        errorMessage =
+            "Connection timed out. Please check your internet on Windows.";
+      } else if (e.response != null) {
+        errorMessage = "Server error: ${e.response?.data}";
+      }
+      throw Exception(errorMessage);
+    } catch (e) {
+      debugPrint('❌ Unexpected deletion error: $e');
+      throw Exception("An unexpected error occurred: $e");
     }
 
     _accounts.removeWhere((a) => a.id == id);
     notifyListeners();
   }
-
-
-
 
   Account _getCurrentUserFromStorage() {
     final box = GetStorage('current_user');
@@ -347,9 +359,7 @@ class AccountsProvider extends ChangeNotifier {
       throw Exception("Session expired. Please log in again.");
     }
 
-    final user = Account.fromMap(
-      Map<String, dynamic>.from(stored),
-    );
+    final user = Account.fromMap(Map<String, dynamic>.from(stored));
 
     debugPrint('🧪 PARSED USER ID: ${user.id}');
     debugPrint('🧪 PARSED USER ROLE: ${user.role}');
@@ -357,9 +367,6 @@ class AccountsProvider extends ChangeNotifier {
 
     return user;
   }
-
-
-
 
   // ================= ADMIN SHORTCUT (DEV ONLY) =================
   void loginAsAdmin() {
@@ -382,9 +389,7 @@ class AccountsProvider extends ChangeNotifier {
 
     final uid = _currentUser!.id;
 
-    await _firestore.collection('users').doc(uid).update({
-      'photoUrl': url,
-    });
+    await _firestore.collection('users').doc(uid).update({'photoUrl': url});
 
     _currentUser = _currentUser!.copyWith(photoUrl: url);
     _saveCurrentUser(_currentUser!);

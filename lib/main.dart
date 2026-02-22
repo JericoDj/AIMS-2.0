@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:aims2frontend/providers/accounts_provider.dart';
 import 'package:aims2frontend/providers/items_provider.dart';
 import 'package:aims2frontend/providers/notification_provider.dart';
@@ -18,6 +20,8 @@ import 'package:window_manager/window_manager.dart';
 
 import 'firebase_options.dart';
 
+import 'package:screen_retriever/screen_retriever.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -30,14 +34,20 @@ Future<void> main() async {
     const WindowOptions(
       minimumSize: Size(1024, 768),
       center: true,
-      // titleBarStyle: TitleBarStyle.hidden, // optional but recommended
     ),
-    () async {
+        () async {
       await windowManager.show();
       await windowManager.focus();
 
-      // 🔥 FORCE TRUE FULLSCREEN
-      await windowManager.maximize();
+      // Get real screen size
+      final screens = PlatformDispatcher.instance.displays;
+      final primary = screens.first;
+      final size = primary.size;
+
+      // Set window to full screen size
+      await windowManager.setBounds(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+      );
     },
   );
 

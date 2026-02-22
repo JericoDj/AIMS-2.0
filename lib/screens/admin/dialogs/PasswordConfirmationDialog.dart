@@ -64,7 +64,14 @@ class _PasswordConfirmationDialogState
         password: password,
       );
 
-      await user.reauthenticateWithCredential(credential);
+      debugPrint('🔐 Starting re-authentication...');
+      await user
+          .reauthenticateWithCredential(credential)
+          .timeout(
+            const Duration(seconds: 15),
+            onTimeout: () => throw Exception("Authentication timed out (15s)"),
+          );
+      debugPrint('✅ Re-authentication successful');
 
       if (mounted) {
         Navigator.pop(context, true); // ✅ Success
