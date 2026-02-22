@@ -158,6 +158,7 @@ String _actionLabel(TransactionType type) {
   return type.name;
 }
 
+
 void _openStockDialog(BuildContext context, StockActionMode mode) {
   showDialog(
     context: context,
