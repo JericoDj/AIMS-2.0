@@ -402,13 +402,16 @@ class AccountsProvider extends ChangeNotifier {
           .from(SupabaseConfig.profileBucket)
           .upload(fileName, file, fileOptions: const FileOptions(upsert: true));
 
-      // 2. Get Public URL
+      // 2. Get Public URL with cache busting
       final String publicUrl = Supabase.instance.client.storage
           .from(SupabaseConfig.profileBucket)
           .getPublicUrl(fileName);
 
+      final String timestampedUrl =
+          '$publicUrl?t=${DateTime.now().millisecondsSinceEpoch}';
+
       // 3. Update Firestore & Local State
-      await updatePhoto(publicUrl);
+      await updatePhoto(timestampedUrl);
     } catch (e) {
       debugPrint('❌ Profile Upload Error: $e');
       rethrow;
@@ -422,8 +425,16 @@ class AccountsProvider extends ChangeNotifier {
 
     await _firestore.collection('users').doc(uid).update({'photoUrl': url});
 
+    // Update current user state
     _currentUser = _currentUser!.copyWith(photoUrl: url);
     _saveCurrentUser(_currentUser!);
+
+    // Update in the accounts list if it exists
+    final index = _accounts.indexWhere((acc) => acc.id == uid);
+    if (index != -1) {
+      _accounts[index] = _accounts[index].copyWith(photoUrl: url);
+    }
+
     notifyListeners();
   }
 }

@@ -75,6 +75,30 @@ class _UserPageState extends State<UserPage> {
     super.dispose();
   }
 
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    try {
+      await context.read<AccountsProvider>().uploadProfileImage(file);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Profile image updated")));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed to upload: $e")));
+      }
+    }
+  }
+
   // ---------------- USER MENUS ----------------
   final onlineMenu = [
     {"icon": Icons.dashboard, "label": "Dashboard"},
@@ -110,30 +134,6 @@ class _UserPageState extends State<UserPage> {
   // SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
-    Future<void> _pickProfileImage() async {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
-
-      final file = File(picked.path);
-
-      try {
-        await context.read<AccountsProvider>().uploadProfileImage(file);
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile image updated")),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Failed to upload: $e")));
-        }
-      }
-    }
-
     return Container(
       width: 260,
       color: Colors.grey[100],

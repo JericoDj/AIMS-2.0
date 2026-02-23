@@ -249,6 +249,30 @@ class _AdminPageState extends State<AdminPage> {
     });
   }
 
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked == null) return;
+
+    final file = File(picked.path);
+
+    try {
+      await context.read<AccountsProvider>().uploadProfileImage(file);
+
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("Profile image updated")));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("Failed: $e")));
+      }
+    }
+  }
+
   String _formatTime(DateTime time) {
     final now = DateTime.now();
     final diff = now.difference(time);
@@ -301,33 +325,6 @@ class _AdminPageState extends State<AdminPage> {
   Widget build(BuildContext context) {
     final menuItems = isOfflineMode ? offlineMenu : onlineMenu;
 
-    Future<void> _pickProfileImage() async {
-      final user = context.read<AccountsProvider>().currentUser;
-      if (user == null) return;
-
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
-
-      final file = File(picked.path);
-
-      try {
-        await context.read<AccountsProvider>().uploadProfileImage(file);
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text("Profile updated")));
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Failed: $e")));
-        }
-      }
-    }
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: Row(
@@ -343,30 +340,6 @@ class _AdminPageState extends State<AdminPage> {
   // LEFT SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
-    Future<void> _pickProfileImage() async {
-      final picker = ImagePicker();
-      final picked = await picker.pickImage(source: ImageSource.gallery);
-      if (picked == null) return;
-
-      final file = File(picked.path);
-
-      try {
-        await context.read<AccountsProvider>().uploadProfileImage(file);
-
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Profile image updated")),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text("Failed: $e")));
-        }
-      }
-    }
-
     final isAdmin = context.watch<AccountsProvider>().isAdmin;
     final syncProvider = context.watch<SyncProvider>();
     return Container(
