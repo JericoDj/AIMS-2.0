@@ -1,0 +1,73 @@
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "aims-2-a973c",
+          "appId": "1:445983747664:android:4e0e03215d43dbdc53ab55",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "aims-2-a973c",
+          "appId": "1:445983747664:ios:55561d8a33dac43353ab55",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "macos": {
+        "default": {
+          "projectId": "aims-2-a973c",
+          "appId": "1:445983747664:ios:55561d8a33dac43353ab55",
+          "uploadDebugSymbols": false,
+          "fileOutput": "macos/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "aims-2-a973c",
+          "configurations": {
+            "android": "1:445983747664:android:4e0e03215d43dbdc53ab55",
+            "ios": "1:445983747664:ios:55561d8a33dac43353ab55",
+            "macos": "1:445983747664:ios:55561d8a33dac43353ab55",
+            "web": "1:445983747664:web:31a91c4441a01fe953ab55",
+            "windows": "1:445983747664:web:09e6f6c9d0b7986653ab55"
+          }
+        }
+      }
+    }
+  },
+  "functions": [
+    {
+      "codebase": "email",
+      "source": "email_functions",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    },
+    {
+      "codebase": "auth",
+      "source": "auth_deletion_functions",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint"
+      ]
+    }
+  ]
+}
