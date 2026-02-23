@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../models/AccountModel.dart';
 
@@ -128,23 +130,44 @@ class InventoryController {
     final Uint8List qrPngBytes = await BarcodeController.generateQrPng(name);
 
     // ============================
-    // 3️⃣ Upload barcode to Storage
+    // 3️⃣ Upload barcode to Storage (WINDOWS SAFE: putFile with UploadTask)
     // ============================
     final Reference barcodeRef = _storage.ref('items/$itemId/barcode.png');
+    String barcodeImageUrl = '';
 
-    await barcodeRef.putData(
-      qrPngBytes,
-      SettableMetadata(contentType: 'image/png'),
-    );
+    try {
+      final Directory tempDir = await getTemporaryDirectory();
+      print('tempDir.path: ${tempDir.path}');
+      final File tempFile = File('${tempDir.path}/temp_qr_$itemId.png');
+      print('tempFile.path: ${tempFile.path}');
+      await tempFile.writeAsBytes(qrPngBytes);
+
+      // Using the reference-style UploadTask for better control
+      final UploadTask uploadTask = barcodeRef.putFile(
+        tempFile,
+        SettableMetadata(contentType: 'image/png'),
+      );
+
+      // Wait for the task to complete
+      final TaskSnapshot snapshot = await uploadTask;
+
+      // Get URL immediately upon successful upload
+      barcodeImageUrl = await snapshot.ref.getDownloadURL();
+
+      // Cleanup
+      if (await tempFile.exists()) await tempFile.delete();
+      debugPrint('✅ Barcode uploaded successfully: $barcodeImageUrl');
+    } catch (e) {
+      debugPrint('⚠️ Storage Error (Windows/Native): $e');
+      // If upload fails, barcodeImageUrl stays empty string vs throwing an error
+    }
 
     // 🔑 Yield again after native upload
     await Future.delayed(const Duration(milliseconds: 20));
 
     // ============================
-    // 4️⃣ Save barcode image URL
+    // 4️⃣ Final Update Firestore
     // ============================
-    final String barcodeImageUrl = await barcodeRef.getDownloadURL();
-
     await docRef.update({'barcode_image_url': barcodeImageUrl});
 
     // ============================
@@ -183,18 +206,32 @@ class InventoryController {
     });
 
     final itemId = docRef.id;
+    String barcodeImageUrl = '';
 
     try {
       final Uint8List qrPngBytes = await BarcodeController.generateQrPng(name);
 
       final barcodeRef = _storage.ref('items/$itemId/barcode.png');
 
-      await barcodeRef.putData(
-        qrPngBytes,
-        SettableMetadata(contentType: 'image/png'),
-      );
+      try {
+        final Directory tempDir = await getTemporaryDirectory();
+        final File tempFile = File(
+          '${tempDir.path}/temp_qr_no_logs_$itemId.png',
+        );
+        await tempFile.writeAsBytes(qrPngBytes);
 
-      final barcodeImageUrl = await barcodeRef.getDownloadURL();
+        final UploadTask uploadTask = barcodeRef.putFile(
+          tempFile,
+          SettableMetadata(contentType: 'image/png'),
+        );
+
+        final TaskSnapshot snapshot = await uploadTask;
+        barcodeImageUrl = await snapshot.ref.getDownloadURL();
+
+        if (await tempFile.exists()) await tempFile.delete();
+      } catch (e) {
+        debugPrint('⚠️ Storage Error in NoLogs: $e');
+      }
 
       await docRef.update({'barcode_image_url': barcodeImageUrl});
     } catch (e, s) {
@@ -544,7 +581,7 @@ class InventoryController {
 
       final int totalStock = batches.fold<int>(
         0,
-            (sum, b) => sum + ((b['quantity'] ?? 0) as num).toInt(),
+        (sum, b) => sum + ((b['quantity'] ?? 0) as num).toInt(),
       );
 
       // ✅ LOG DELETE (MUST AWAIT)
@@ -579,7 +616,6 @@ class InventoryController {
       rethrow;
     }
   }
-
 
   Future<String?> findItemIdByName(String name) async {
     final key = normalizeItemName(name);
