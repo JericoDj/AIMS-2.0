@@ -15,7 +15,7 @@ class OfflineAddItemDialog extends StatefulWidget {
 
 class _OfflineAddItemDialogState extends State<OfflineAddItemDialog> {
   final _nameCtrl = TextEditingController();
-  final _qtyCtrl = TextEditingController(text: "0");
+  final _qtyCtrl = TextEditingController();
 
   ItemCategory? _category;
   DateTime? _expiryDate;

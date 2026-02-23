@@ -2,7 +2,6 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
 import '../../controllers/inventoryTransactionReportController.dart';
@@ -16,6 +15,8 @@ import 'dialogs/ItemDetailsDialog.dart'; // Restored
 import 'dialogs/StockActionDialog.dart';
 import 'widgets/ReusableButton.dart';
 import '../../utils/enums/stock_actions_enum.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../controllers/barCodeController.dart';
 
 class StockMonitoringPage extends StatefulWidget {
   final StockFilter? initialFilter;
@@ -524,53 +525,41 @@ class StockRow extends StatelessWidget {
           _Cell(
             null,
             flex: 2,
-            child:
-                barcodeUrl == null
-                    ? const Icon(Icons.qr_code, color: Colors.grey)
-                    : Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Image.network(
-                          barcodeUrl!,
-                          height: 70,
-                          fit: BoxFit.contain,
-                          errorBuilder:
-                              (_, __, ___) => const Icon(
-                                Icons.broken_image,
-                                color: Colors.red,
-                              ),
-                        ),
-                        const SizedBox(height: 10),
-                        Container(
-                          decoration: BoxDecoration(
-                            color: Colors.green[50],
-                            border: Border.all(color: Colors.green[700]!),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: TextButton(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder:
-                                    (_) => _BarcodeViewerDialog(
-                                      name: item,
-                                      barcodeUrl: barcodeUrl!,
-                                    ),
-                              );
-                            },
-                            child: Text(
-                              "View",
-                              style: TextStyle(
-                                color: Colors.green[700],
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  height: 60,
+                  width: 60,
+                  child: QrImageView(data: item, version: QrVersions.auto),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.green[50],
+                    border: Border.all(color: Colors.green[700]!),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: TextButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (_) => _BarcodeViewerDialog(name: item),
+                      );
+                    },
+                    child: Text(
+                      "View",
+                      style: TextStyle(
+                        color: Colors.green[700],
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
+                  ),
+                ),
+              ],
+            ),
           ),
 
           // ================= STATUS CELL =================
@@ -632,18 +621,14 @@ class StockRow extends StatelessWidget {
 }
 
 class _BarcodeViewerDialog extends StatelessWidget {
-  final String barcodeUrl;
   final String name;
 
-  const _BarcodeViewerDialog({required this.name, required this.barcodeUrl});
+  const _BarcodeViewerDialog({required this.name});
 
   Future<void> _saveImage(BuildContext context) async {
     try {
-      // 1️⃣ Download image
-      final response = await http.get(Uri.parse(barcodeUrl));
-      if (response.statusCode != 200) {
-        throw Exception("Failed to download image");
-      }
+      // 1️⃣ Generate image
+      final bytes = await BarcodeController.generateQrPng(name);
 
       // 2️⃣ Ask WHERE to save
       final String? folderPath = await FilePicker.platform.getDirectoryPath(
@@ -658,7 +643,7 @@ class _BarcodeViewerDialog extends StatelessWidget {
 
       // 4️⃣ Save file
       final file = File(filePath);
-      await file.writeAsBytes(response.bodyBytes);
+      await file.writeAsBytes(bytes);
 
       if (!context.mounted) return;
       Navigator.pop(context); // close barcode preview dialog
@@ -736,15 +721,10 @@ class _BarcodeViewerDialog extends StatelessWidget {
               child: InteractiveViewer(
                 minScale: 1,
                 maxScale: 4,
-                child: Image.network(
-                  barcodeUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder:
-                      (_, __, ___) => const Icon(
-                        Icons.broken_image,
-                        color: Colors.red,
-                        size: 40,
-                      ),
+                child: QrImageView(
+                  data: name,
+                  version: QrVersions.auto,
+                  backgroundColor: Colors.white,
                 ),
               ),
             ),

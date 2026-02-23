@@ -3,9 +3,9 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
-
+import 'package:qr_flutter/qr_flutter.dart';
+import '../../controllers/barCodeController.dart';
 
 import '../../models/ItemModel.dart';
 import '../../providers/offline_inventory_provider.dart';
@@ -13,15 +13,16 @@ import '../../utils/enums/stock_filter_enum.dart';
 import '../admin/dialogs/OfflineItemDialog.dart';
 import '../admin/widgets/ReusableButton.dart';
 
-
 class OfflineStockMonitoringPage extends StatefulWidget {
   const OfflineStockMonitoringPage({super.key});
 
   @override
-  State<OfflineStockMonitoringPage> createState() => _OfflineStockMonitoringPageState();
+  State<OfflineStockMonitoringPage> createState() =>
+      _OfflineStockMonitoringPageState();
 }
 
-class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage> {
+class _OfflineStockMonitoringPageState
+    extends State<OfflineStockMonitoringPage> {
   StockFilter _filter = StockFilter.all;
   String _searchQuery = '';
 
@@ -107,7 +108,7 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child:  Padding(
+                child: Padding(
                   padding: EdgeInsets.symmetric(horizontal: 10),
                   child: TextField(
                     onChanged: (value) {
@@ -157,7 +158,6 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
               selected: _filter == StockFilter.expiry,
               onTap: () => setState(() => _filter = StockFilter.expiry),
             ),
-
           ],
         ),
 
@@ -186,19 +186,27 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
 
                         switch (_filter) {
                           case StockFilter.low:
-                            base = inventory.items.where((i) => i.isLowStock).toList();
+                            base =
+                                inventory.items
+                                    .where((i) => i.isLowStock)
+                                    .toList();
                             break;
 
                           case StockFilter.out:
-                            base = inventory.items.where((i) => i.isOutOfStock).toList();
+                            base =
+                                inventory.items
+                                    .where((i) => i.isOutOfStock)
+                                    .toList();
                             break;
 
                           case StockFilter.expiry:
                             final now = DateTime.now();
-                            base = inventory.items.where((i) {
-                              final exp = i.nearestExpiry;
-                              return exp != null && exp.difference(now).inDays <= 30;
-                            }).toList();
+                            base =
+                                inventory.items.where((i) {
+                                  final exp = i.nearestExpiry;
+                                  return exp != null &&
+                                      exp.difference(now).inDays <= 30;
+                                }).toList();
                             break;
 
                           case StockFilter.all:
@@ -209,14 +217,21 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
                         if (_searchQuery.isEmpty) return base;
 
                         return base.where((item) {
-                          return item.name.toLowerCase().contains(_searchQuery) ||
-                              item.category.toLowerCase().contains(_searchQuery);
+                          return item.name.toLowerCase().contains(
+                                _searchQuery,
+                              ) ||
+                              item.category.toLowerCase().contains(
+                                _searchQuery,
+                              );
                         }).toList();
                       }();
 
                       if (filteredItems.isEmpty) {
                         return const Center(
-                          child: Text("No offline items found", style: TextStyle(fontSize: 18)),
+                          child: Text(
+                            "No offline items found",
+                            style: TextStyle(fontSize: 18),
+                          ),
                         );
                       }
 
@@ -230,7 +245,6 @@ class _OfflineStockMonitoringPageState extends State<OfflineStockMonitoringPage>
                     },
                   ),
                 ),
-
               ],
             ),
           ),
@@ -294,17 +308,12 @@ class _FilterChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
       ),
     );
   }
 }
-
-
 
 //
 // ========================= TABLE HEADER =========================
@@ -332,7 +341,6 @@ class _HeaderCell extends StatelessWidget {
   }
 }
 
-
 //
 // ========================= STOCK ROW =========================
 //
@@ -349,10 +357,7 @@ class OfflineStockRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.2),
         border: Border(
-          bottom: BorderSide(
-            color: Colors.white.withOpacity(0.7),
-            width: 1,
-          ),
+          bottom: BorderSide(color: Colors.white.withOpacity(0.7), width: 1),
         ),
       ),
       child: Row(
@@ -362,15 +367,9 @@ class OfflineStockRow extends StatelessWidget {
           _Cell(item.displayStock.toString(), flex: 2),
           _Cell(item.nearestExpiryFormatted, flex: 2),
 
-          Expanded(
-            flex: 2,
-            child: _QrCell(item: item),
-          ),
+          Expanded(flex: 2, child: _QrCell(item: item)),
 
-          Expanded(
-            flex: 2,
-            child:_StatusBadge(item: item),
-          ),
+          Expanded(flex: 2, child: _StatusBadge(item: item)),
         ],
       ),
     );
@@ -410,14 +409,12 @@ class _StatusBadge extends StatelessWidget {
       child: Text(
         _statusText(),
         textAlign: TextAlign.center,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.bold,
-        ),
+        style: TextStyle(color: color, fontWeight: FontWeight.bold),
       ),
     );
   }
 }
+
 class _QrCell extends StatelessWidget {
   final ItemModel item;
 
@@ -425,32 +422,24 @@ class _QrCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final barcodePath = item.barcodeImageUrl;
-
-    if (barcodePath == null || barcodePath.isEmpty) {
-      return const Icon(Icons.qr_code, color: Colors.grey);
-    }
-
-    final file = File(barcodePath);
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          height: 70,
-          child: file.existsSync()
-              ? Image.file(file, fit: BoxFit.contain)
-              : const Icon(Icons.broken_image, color: Colors.red),
+          height: 60,
+          width: 60,
+          child: QrImageView(
+            data: item.name,
+            version: QrVersions.auto,
+            errorCorrectionLevel: QrErrorCorrectLevel.M,
+          ),
         ),
         const SizedBox(height: 10),
         InkWell(
           onTap: () {
             showDialog(
               context: context,
-              builder: (_) => _BarcodeViewerDialog(
-
-                  name: item.name,
-                  barcodeUrl: barcodePath),
+              builder: (_) => _BarcodeViewerDialog(name: item.name),
             );
           },
           child: Container(
@@ -476,49 +465,22 @@ class _QrCell extends StatelessWidget {
 }
 
 class _BarcodeViewerDialog extends StatelessWidget {
-  final String barcodeUrl;
   final String name;
 
-  const _BarcodeViewerDialog({
-    required this.name,
-    required this.barcodeUrl,
-  });
-
-  bool get _isLocalFile {
-    return barcodeUrl.startsWith('/') ||        // macOS / Linux
-        barcodeUrl.contains(':\\') ||            // Windows
-        File(barcodeUrl).existsSync();
-  }
+  const _BarcodeViewerDialog({required this.name});
 
   Future<void> _saveImage(BuildContext context) async {
     try {
-      late Uint8List bytes;
-
-      // ================= LOAD IMAGE =================
-      if (_isLocalFile) {
-        final file = File(barcodeUrl);
-        if (!file.existsSync()) {
-          throw Exception('QR image file not found');
-        }
-        bytes = await file.readAsBytes();
-      } else {
-        final response = await http.get(Uri.parse(barcodeUrl));
-        if (response.statusCode != 200) {
-          throw Exception("Failed to download image");
-        }
-        bytes = response.bodyBytes;
-      }
+      final Uint8List bytes = await BarcodeController.generateQrPng(name);
 
       // ================= PICK DESTINATION =================
-      final String? folderPath =
-      await FilePicker.platform.getDirectoryPath(
+      final String? folderPath = await FilePicker.platform.getDirectoryPath(
         dialogTitle: 'Choose where to save the QR / Barcode',
       );
 
       if (folderPath == null) return;
 
-      final safeName =
-      name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
+      final safeName = name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_');
       final filePath = '$folderPath/QR_$safeName.png';
 
       await File(filePath).writeAsBytes(bytes);
@@ -536,9 +498,9 @@ class _BarcodeViewerDialog extends StatelessWidget {
         ),
       );
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save image: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save image: $e')));
     }
   }
 
@@ -547,11 +509,7 @@ class _BarcodeViewerDialog extends StatelessWidget {
     if (!file.existsSync()) return;
 
     if (Platform.isWindows) {
-      await Process.run(
-        'explorer',
-        ['/select,', file.path],
-        runInShell: true,
-      );
+      await Process.run('explorer', ['/select,', file.path], runInShell: true);
     } else if (Platform.isMacOS) {
       await Process.run('open', ['-R', file.path]);
     } else if (Platform.isLinux) {
@@ -598,17 +556,10 @@ class _BarcodeViewerDialog extends StatelessWidget {
               child: InteractiveViewer(
                 minScale: 1,
                 maxScale: 4,
-                child: _isLocalFile
-                    ? Image.file(
-                  File(barcodeUrl),
-                  fit: BoxFit.contain,
-                )
-                    : Image.network(
-                  barcodeUrl,
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.broken_image,
-                      color: Colors.red, size: 40),
+                child: QrImageView(
+                  data: name,
+                  version: QrVersions.auto,
+                  backgroundColor: Colors.white,
                 ),
               ),
             ),
@@ -643,10 +594,6 @@ class _BarcodeViewerDialog extends StatelessWidget {
   }
 }
 
-
-
-
-
 //
 // ========================= TABLE CELL =========================
 //
@@ -659,13 +606,13 @@ class _Cell extends StatelessWidget {
   String _formatCategory(String input) {
     final v = input;
 
-    if (v ==("pgb")) {
+    if (v == ("pgb")) {
       return "PGB";
     }
-    if (v ==("bmcpgb")) {
+    if (v == ("bmcpgb")) {
       return "BMC";
     }
-    if (v ==("dsbpgb")) {
+    if (v == ("dsbpgb")) {
       return "DSB";
     }
 
@@ -674,7 +621,6 @@ class _Cell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-
     final formatted = _formatCategory(text);
     final isNegative = text.startsWith('-');
 
@@ -692,5 +638,3 @@ class _Cell extends StatelessWidget {
     );
   }
 }
-
-

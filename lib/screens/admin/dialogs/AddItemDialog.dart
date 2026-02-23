@@ -18,7 +18,7 @@ class AddItemDialog extends StatefulWidget {
 
 class _AddItemDialogState extends State<AddItemDialog> {
   final _nameCtrl = TextEditingController();
-  final _qtyCtrl = TextEditingController(text: "0");
+  final _qtyCtrl = TextEditingController();
 
   ItemCategory? _category;
   DateTime? _expiryDate;
