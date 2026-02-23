@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../../controllers/offlineInventoryController.dart';
@@ -229,35 +228,24 @@ class _OfflineStockActionDialogState extends State<OfflineStockActionDialog> {
             const SizedBox(height: 16),
 
             // ================= SCAN INPUT =================
-            // ================= SCAN INPUT =================
-            RawKeyboardListener(
-              focusNode: FocusNode(),
-              onKey: (event) {
-                if (event is RawKeyDownEvent &&
-                    (event.logicalKey == LogicalKeyboardKey.enter ||
-                        event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-                  final value = _scanCtrl.text.trim();
-                  if (value.isEmpty) return;
-
-                  final matches = _handleScanOrSearch(value);
-
-                  if (matches.length == 1) {
-                    _selectItem(matches.first);
-                  }
-
-                  _scanCtrl.clear();
+            TextField(
+              controller: _scanCtrl,
+              focusNode: _scanFocus,
+              autofocus: true,
+              enableSuggestions: false,
+              autocorrect: false,
+              onSubmitted: (value) {
+                final trimmed = value.trim();
+                if (trimmed.isEmpty) return;
+                final matches = _handleScanOrSearch(trimmed);
+                if (matches.length == 1) {
+                  _selectItem(matches.first);
                 }
+                _scanCtrl.clear();
               },
-              child: TextField(
-                controller: _scanCtrl,
-                focusNode: _scanFocus,
-                autofocus: true,
-                enableSuggestions: false,
-                autocorrect: false,
-                decoration: const InputDecoration(
-                  labelText: "Scan QR or search item",
-                  prefixIcon: Icon(Icons.qr_code_scanner),
-                ),
+              decoration: const InputDecoration(
+                labelText: "Scan QR or search item",
+                prefixIcon: Icon(Icons.qr_code_scanner),
               ),
             ),
 
@@ -265,53 +253,41 @@ class _OfflineStockActionDialogState extends State<OfflineStockActionDialog> {
             if (widget.mode == StockActionMode.add) ...[
               const SizedBox(height: 12),
 
-              RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (event) {
-                  if (event is RawKeyDownEvent &&
-                      (event.logicalKey == LogicalKeyboardKey.enter ||
-                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-                    if (_selectedExpiry == null) {
-                      _pickExpiry(); // open date picker
-                    } else {
-                      FocusScope.of(context).requestFocus(_qtyFocus);
-                    }
+              TextField(
+                controller: _expiryCtrl,
+                focusNode: _expiryFocus,
+                readOnly: true,
+
+                onTap: _pickExpiry,
+
+                onSubmitted: (_) async {
+                  if (_selectedExpiry == null) {
+                    await _pickExpiry();
+                  }
+                  if (mounted) {
+                    FocusScope.of(context).requestFocus(_qtyFocus);
                   }
                 },
-                child: TextField(
-                  controller: _expiryCtrl,
-                  focusNode: _expiryFocus,
-                  readOnly: true,
-                  onTap: _pickExpiry,
-                  decoration: const InputDecoration(
-                    labelText: "Expiry Date",
-                    prefixIcon: Icon(Icons.calendar_today),
-                  ),
+
+                decoration: const InputDecoration(
+                  labelText: "Expiry Date",
+                  prefixIcon: Icon(Icons.calendar_today),
                 ),
               ),
             ],
-
             const SizedBox(height: 12),
 
             // ================= QTY =================
             if (widget.mode != StockActionMode.view)
-              RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (event) {
-                  if (event is RawKeyDownEvent &&
-                      (event.logicalKey == LogicalKeyboardKey.enter ||
-                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-                    if (_selectedItem == null) return;
-
-                    _confirmItem(_selectedItem!);
-                  }
+              TextField(
+                controller: _qtyCtrl,
+                focusNode: _qtyFocus,
+                keyboardType: TextInputType.number,
+                onSubmitted: (_) {
+                  if (_selectedItem == null) return;
+                  _confirmItem(_selectedItem!);
                 },
-                child: TextField(
-                  controller: _qtyCtrl,
-                  focusNode: _qtyFocus,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Quantity"),
-                ),
+                decoration: const InputDecoration(labelText: "Quantity"),
               ),
 
             const SizedBox(height: 16),

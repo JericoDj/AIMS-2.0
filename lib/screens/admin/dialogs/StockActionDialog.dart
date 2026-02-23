@@ -391,36 +391,27 @@ class _StockActionDialogState extends State<StockActionDialog> {
 
             // ================= SCAN =================
             _styledField(
-              child: RawKeyboardListener(
-                focusNode: FocusNode(),
-                onKey: (event) {
-                  if (event is RawKeyDownEvent &&
-                      (event.logicalKey == LogicalKeyboardKey.enter ||
-                          event.logicalKey == LogicalKeyboardKey.numpadEnter)) {
-                    final value = _scanCtrl.text.trim();
-                    if (value.isEmpty) return;
-
-                    final matches = _handleScanOrSearch(value);
+              child: Align(
+                alignment: Alignment.center,
+                child: TextField(
+                  controller: _scanCtrl,
+                  focusNode: _scanFocus,
+                  autofocus: true,
+                  textAlignVertical: TextAlignVertical.center,
+                  textCapitalization: TextCapitalization.characters,
+                  onChanged: _onScanTextChanged,
+                  onSubmitted: (value) {
+                    final trimmed = value.trim();
+                    if (trimmed.isEmpty) return;
+                    final matches = _handleScanOrSearch(trimmed);
                     if (matches.isNotEmpty) {
                       _selectItem(matches[_selectedIndex]);
                     }
-                    // _scanCtrl.clear();
-                  }
-                },
-                child: Align(
-                  alignment: Alignment.center,
-                  child: TextField(
-                    controller: _scanCtrl,
-                    focusNode: _scanFocus,
-                    autofocus: true,
-                    textAlignVertical: TextAlignVertical.center,
-                    textCapitalization: TextCapitalization.characters,
-                    onChanged: _onScanTextChanged,
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                      hintText: "Scan QR or search item",
-                      prefixIcon: Icon(Icons.qr_code_scanner),
-                    ),
+                  },
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "Scan QR or search item",
+                    prefixIcon: Icon(Icons.qr_code_scanner),
                   ),
                 ),
               ),
