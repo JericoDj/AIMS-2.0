@@ -114,7 +114,7 @@ class _StockActionDialogState extends State<StockActionDialog> {
       case StockActionMode.dispense:
         return "Dispense Stock";
       case StockActionMode.delete:
-        return "Delete Stock";
+        return "Delete Item";
       default:
         throw UnimplementedError();
     }
