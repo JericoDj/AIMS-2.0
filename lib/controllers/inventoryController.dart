@@ -1,21 +1,19 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:path_provider/path_provider.dart';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../utils/supabase_config.dart';
 
 import '../models/AccountModel.dart';
 
 import '../models/TransactionModel.dart';
 import 'barCodeController.dart';
-import 'barCodeDecoderController.dart';
 import 'inventoryTransactionController.dart';
 
 class InventoryController {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   String normalizeItemName(String input) {
     return input
@@ -130,36 +128,33 @@ class InventoryController {
     final Uint8List qrPngBytes = await BarcodeController.generateQrPng(name);
 
     // ============================
-    // 3️⃣ Upload barcode to Storage (WINDOWS SAFE: putFile with UploadTask)
+    // 3️⃣ Upload barcode to Supabase Storage
     // ============================
-    final Reference barcodeRef = _storage.ref('items/$itemId/barcode.png');
     String barcodeImageUrl = '';
 
     try {
-      final Directory tempDir = await getTemporaryDirectory();
-      print('tempDir.path: ${tempDir.path}');
-      final File tempFile = File('${tempDir.path}/temp_qr_$itemId.png');
-      print('tempFile.path: ${tempFile.path}');
-      await tempFile.writeAsBytes(qrPngBytes);
+      final String fileName = 'barcode_$itemId.png';
 
-      // Using the reference-style UploadTask for better control
-      final UploadTask uploadTask = barcodeRef.putFile(
-        tempFile,
-        SettableMetadata(contentType: 'image/png'),
-      );
+      // Upload using Supabase Storage
+      await Supabase.instance.client.storage
+          .from(SupabaseConfig.barcodeBucket)
+          .uploadBinary(
+            fileName,
+            qrPngBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/png',
+              upsert: true,
+            ),
+          );
 
-      // Wait for the task to complete
-      final TaskSnapshot snapshot = await uploadTask;
+      // Get public URL
+      barcodeImageUrl = Supabase.instance.client.storage
+          .from(SupabaseConfig.barcodeBucket)
+          .getPublicUrl(fileName);
 
-      // Get URL immediately upon successful upload
-      barcodeImageUrl = await snapshot.ref.getDownloadURL();
-
-      // Cleanup
-      if (await tempFile.exists()) await tempFile.delete();
-      debugPrint('✅ Barcode uploaded successfully: $barcodeImageUrl');
+      debugPrint('✅ Barcode uploaded to Supabase: $barcodeImageUrl');
     } catch (e) {
-      debugPrint('⚠️ Storage Error (Windows/Native): $e');
-      // If upload fails, barcodeImageUrl stays empty string vs throwing an error
+      debugPrint('⚠️ Supabase Storage Error: $e');
     }
 
     // 🔑 Yield again after native upload
@@ -211,26 +206,25 @@ class InventoryController {
     try {
       final Uint8List qrPngBytes = await BarcodeController.generateQrPng(name);
 
-      final barcodeRef = _storage.ref('items/$itemId/barcode.png');
-
       try {
-        final Directory tempDir = await getTemporaryDirectory();
-        final File tempFile = File(
-          '${tempDir.path}/temp_qr_no_logs_$itemId.png',
-        );
-        await tempFile.writeAsBytes(qrPngBytes);
+        final String fileName = 'no_logs_barcode_$itemId.png';
 
-        final UploadTask uploadTask = barcodeRef.putFile(
-          tempFile,
-          SettableMetadata(contentType: 'image/png'),
-        );
+        await Supabase.instance.client.storage
+            .from(SupabaseConfig.barcodeBucket)
+            .uploadBinary(
+              fileName,
+              qrPngBytes,
+              fileOptions: const FileOptions(
+                contentType: 'image/png',
+                upsert: true,
+              ),
+            );
 
-        final TaskSnapshot snapshot = await uploadTask;
-        barcodeImageUrl = await snapshot.ref.getDownloadURL();
-
-        if (await tempFile.exists()) await tempFile.delete();
+        barcodeImageUrl = Supabase.instance.client.storage
+            .from(SupabaseConfig.barcodeBucket)
+            .getPublicUrl(fileName);
       } catch (e) {
-        debugPrint('⚠️ Storage Error in NoLogs: $e');
+        debugPrint('⚠️ Supabase Storage Error in NoLogs: $e');
       }
 
       await docRef.update({'barcode_image_url': barcodeImageUrl});
@@ -606,7 +600,10 @@ class InventoryController {
 
       // 🧹 DELETE BARCODE
       try {
-        await _storage.ref('items/$itemId/barcode.png').delete();
+        final String fileName = 'barcode_$itemId.png';
+        await Supabase.instance.client.storage
+            .from(SupabaseConfig.barcodeBucket)
+            .remove([fileName]);
       } catch (_) {}
 
       debugPrint('✅ [deleteItem] Deleted with qty=$totalStock');

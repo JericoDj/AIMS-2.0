@@ -1,9 +1,14 @@
+import 'dart:io';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../utils/supabase_config.dart';
 
 import '../models/AccountModel.dart';
 import '../screens/user/StorageKeys.dart';
@@ -382,6 +387,32 @@ class AccountsProvider extends ChangeNotifier {
     _currentUser = admin;
     _saveCurrentUser(admin);
     notifyListeners();
+  }
+
+  Future<void> uploadProfileImage(File file) async {
+    if (_currentUser == null) return;
+
+    final uid = _currentUser!.id;
+
+    try {
+      final String fileName = '$uid.jpg';
+
+      // 1. Upload to Supabase Storage (FORCE OVERWRITE)
+      await Supabase.instance.client.storage
+          .from(SupabaseConfig.profileBucket)
+          .upload(fileName, file, fileOptions: const FileOptions(upsert: true));
+
+      // 2. Get Public URL
+      final String publicUrl = Supabase.instance.client.storage
+          .from(SupabaseConfig.profileBucket)
+          .getPublicUrl(fileName);
+
+      // 3. Update Firestore & Local State
+      await updatePhoto(publicUrl);
+    } catch (e) {
+      debugPrint('❌ Profile Upload Error: $e');
+      rethrow;
+    }
   }
 
   Future<void> updatePhoto(String url) async {

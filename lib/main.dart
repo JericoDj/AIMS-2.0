@@ -14,16 +14,20 @@ import 'package:firebase_core/firebase_core.dart' show Firebase;
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:provider/provider.dart';
-import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:window_manager/window_manager.dart';
 
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'utils/supabase_config.dart';
 import 'firebase_options.dart';
-
-import 'package:screen_retriever/screen_retriever.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await Supabase.initialize(
+    url: SupabaseConfig.url,
+    anonKey: SupabaseConfig.anonKey,
+  );
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -31,11 +35,8 @@ Future<void> main() async {
   await windowManager.ensureInitialized();
 
   windowManager.waitUntilReadyToShow(
-    const WindowOptions(
-      minimumSize: Size(1024, 768),
-      center: true,
-    ),
-        () async {
+    const WindowOptions(minimumSize: Size(1024, 768), center: true),
+    () async {
       await windowManager.show();
       await windowManager.focus();
 

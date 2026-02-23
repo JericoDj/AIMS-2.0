@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:go_router/go_router.dart';
@@ -300,14 +299,7 @@ class _AdminPageState extends State<AdminPage> {
 
   @override
   Widget build(BuildContext context) {
-    Future<String> uploadProfileImage(String userId, File file) async {
-      final ref = FirebaseStorage.instance.ref().child(
-        'profileImages/$userId.jpg',
-      );
-
-      await ref.putFile(file);
-      return await ref.getDownloadURL();
-    }
+    final menuItems = isOfflineMode ? offlineMenu : onlineMenu;
 
     Future<void> _pickProfileImage() async {
       final user = context.read<AccountsProvider>().currentUser;
@@ -320,21 +312,21 @@ class _AdminPageState extends State<AdminPage> {
       final file = File(picked.path);
 
       try {
-        final url = await uploadProfileImage(user.id, file);
+        await context.read<AccountsProvider>().uploadProfileImage(file);
 
-        await context.read<AccountsProvider>().updatePhoto(url);
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Profile updated")));
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text("Profile updated")));
+        }
       } catch (e) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("Failed: $e")));
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Failed: $e")));
+        }
       }
     }
-
-    final menuItems = isOfflineMode ? offlineMenu : onlineMenu;
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -357,20 +349,22 @@ class _AdminPageState extends State<AdminPage> {
       if (picked == null) return;
 
       final file = File(picked.path);
-      final uid = context.read<AccountsProvider>().currentUser!.id;
 
-      final ref = FirebaseStorage.instance.ref().child(
-        'profileImages/$uid.jpg',
-      );
+      try {
+        await context.read<AccountsProvider>().uploadProfileImage(file);
 
-      await ref.putFile(file);
-      final url = await ref.getDownloadURL();
-
-      await context.read<AccountsProvider>().updatePhoto(url);
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Profile image updated")));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Profile image updated")),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Failed: $e")));
+        }
+      }
     }
 
     final isAdmin = context.watch<AccountsProvider>().isAdmin;

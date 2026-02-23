@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:image_picker/image_picker.dart';
@@ -76,7 +75,6 @@ class _UserPageState extends State<UserPage> {
     super.dispose();
   }
 
-
   // ---------------- USER MENUS ----------------
   final onlineMenu = [
     {"icon": Icons.dashboard, "label": "Dashboard"},
@@ -112,28 +110,30 @@ class _UserPageState extends State<UserPage> {
   // SIDEBAR
   // -----------------------------------
   Widget _buildSidebar(BuildContext context, List menuItems) {
-
     Future<void> _pickProfileImage() async {
       final picker = ImagePicker();
       final picked = await picker.pickImage(source: ImageSource.gallery);
       if (picked == null) return;
 
       final file = File(picked.path);
-      final uid = context.read<AccountsProvider>().currentUser!.id;
 
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child('profileImages/$uid.jpg');
+      try {
+        await context.read<AccountsProvider>().uploadProfileImage(file);
 
-      await ref.putFile(file);
-      final url = await ref.getDownloadURL();
-
-      await context.read<AccountsProvider>().updatePhoto(url);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile image updated")),
-      );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Profile image updated")),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text("Failed to upload: $e")));
+        }
+      }
     }
+
     return Container(
       width: 260,
       color: Colors.grey[100],
@@ -149,13 +149,18 @@ class _UserPageState extends State<UserPage> {
                   alignment: Alignment.topRight,
                   child: Consumer<NotificationProvider>(
                     builder: (context, notif, _) {
-                      final userId = context.read<AccountsProvider>().currentUser?.id;
-                      final unread = (userId == null) ? 0 : getUnread(notif, userId);
+                      final userId =
+                          context.read<AccountsProvider>().currentUser?.id;
+                      final unread =
+                          (userId == null) ? 0 : getUnread(notif, userId);
 
                       return Stack(
                         children: [
                           IconButton(
-                            icon: Icon(Icons.notifications, color: Colors.green[800]),
+                            icon: Icon(
+                              Icons.notifications,
+                              color: Colors.green[800],
+                            ),
                             onPressed: _showNotificationPanel,
                           ),
                           if (unread > 0)
@@ -163,14 +168,20 @@ class _UserPageState extends State<UserPage> {
                               right: 6,
                               top: 6,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 5,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.red,
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 child: Text(
                                   unread.toString(),
-                                  style: const TextStyle(color: Colors.white, fontSize: 11),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ),
                             ),
@@ -187,22 +198,27 @@ class _UserPageState extends State<UserPage> {
                     onTap: _pickProfileImage,
                     child: CircleAvatar(
                       radius: 40,
-                      backgroundImage: (url != null && url.isNotEmpty && url.startsWith('http'))
-                          ? NetworkImage(url)
-                          : const AssetImage("assets/Avatar2.jpeg") as ImageProvider,
+                      backgroundImage:
+                          (url != null &&
+                                  url.isNotEmpty &&
+                                  url.startsWith('http'))
+                              ? NetworkImage(url)
+                              : const AssetImage("assets/Avatar2.jpeg")
+                                  as ImageProvider,
                     ),
                   );
                 },
               ),
               const SizedBox(height: 10),
               Consumer<AccountsProvider>(
-                builder: (_, acc, __) => Text(
-                  acc.currentUser?.fullName ?? "User",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                builder:
+                    (_, acc, __) => Text(
+                      acc.currentUser?.fullName ?? "User",
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
               ),
               Text(
                 isOfflineMode ? "(OFFLINE MODE)" : "User",
@@ -234,15 +250,13 @@ class _UserPageState extends State<UserPage> {
                       children: [
                         Icon(
                           item["icon"] as IconData,
-                          color:
-                          selected ? Colors.white : Colors.green[800],
+                          color: selected ? Colors.white : Colors.green[800],
                         ),
                         const SizedBox(width: 15),
                         Text(
                           item["label"] as String,
                           style: TextStyle(
-                            color:
-                            selected ? Colors.white : Colors.green[900],
+                            color: selected ? Colors.white : Colors.green[900],
                           ),
                         ),
                       ],
@@ -288,8 +302,9 @@ class _UserPageState extends State<UserPage> {
                 if (!_hasValidOfflineUser()) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content:
-                      Text("Login online first to enable offline mode"),
+                      content: Text(
+                        "Login online first to enable offline mode",
+                      ),
                     ),
                   );
                   return;
@@ -304,8 +319,7 @@ class _UserPageState extends State<UserPage> {
                 width: 200,
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color:
-                  isOfflineMode ? Colors.red[300] : Colors.green[300],
+                  color: isOfflineMode ? Colors.red[300] : Colors.green[300],
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Center(
@@ -325,8 +339,7 @@ class _UserPageState extends State<UserPage> {
           Padding(
             padding: const EdgeInsets.only(bottom: 25),
             child: GestureDetector(
-              onTap: () =>
-                  context.read<AccountsProvider>().logout(),
+              onTap: () => context.read<AccountsProvider>().logout(),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -439,9 +452,7 @@ class _UserPageState extends State<UserPage> {
     final userId = context.read<AccountsProvider>().currentUser?.id;
     if (userId == null) return;
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {});
 
     showDialog(
       context: context,
@@ -498,7 +509,9 @@ class _UserPageState extends State<UserPage> {
                             if (unread > 0)
                               TextButton(
                                 onPressed: () {
-                                  context.read<NotificationProvider>().markAllAsRead(userId);
+                                  context
+                                      .read<NotificationProvider>()
+                                      .markAllAsRead(userId);
                                 },
                                 child: const Text("Mark all as read"),
                               ),
@@ -507,7 +520,7 @@ class _UserPageState extends State<UserPage> {
                               onPressed: () => Navigator.pop(context),
                             ),
                           ],
-                        )
+                        ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -524,45 +537,49 @@ class _UserPageState extends State<UserPage> {
                         height: MediaQuery.of(context).size.height * 0.55,
                         child: SingleChildScrollView(
                           child: Column(
-                            children: notifProvider.notifications.map((n) {
-                              final isRead = (n.readBy?[userId] == true);
+                            children:
+                                notifProvider.notifications.map((n) {
+                                  final isRead = (n.readBy?[userId] == true);
 
-                              return Column(
-                                children: [
-                                  ListTile(
-                                    leading: Icon(
-                                      isRead
-                                          ? Icons.notifications_none
-                                          : Icons.notifications_active,
-                                      color: isRead ? Colors.grey : Colors.green,
-                                    ),
-                                    title: Text(
-                                      n.title,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
-                                    ),
-                                    subtitle: Text(n.message),
-                                    trailing: Text(
-                                      _formatTime(n.createdAt),
-                                      style: const TextStyle(fontSize: 11),
-                                    ),
-                                    onTap: () {
-                                      context
-                                          .read<NotificationProvider>()
-                                          .markAsRead(n.id, userId);
+                                  return Column(
+                                    children: [
+                                      ListTile(
+                                        leading: Icon(
+                                          isRead
+                                              ? Icons.notifications_none
+                                              : Icons.notifications_active,
+                                          color:
+                                              isRead
+                                                  ? Colors.grey
+                                                  : Colors.green,
+                                        ),
+                                        title: Text(
+                                          n.title,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        subtitle: Text(n.message),
+                                        trailing: Text(
+                                          _formatTime(n.createdAt),
+                                          style: const TextStyle(fontSize: 11),
+                                        ),
+                                        onTap: () {
+                                          context
+                                              .read<NotificationProvider>()
+                                              .markAsRead(n.id, userId);
 
-                                      Navigator.pop(context);
-                                      _handleNotificationNavigation(n);
-                                    },
-                                  ),
-                                  const Divider(height: 6),
-                                ],
-                              );
-                            }).toList(),
+                                          Navigator.pop(context);
+                                          _handleNotificationNavigation(n);
+                                        },
+                                      ),
+                                      const Divider(height: 6),
+                                    ],
+                                  );
+                                }).toList(),
                           ),
                         ),
-                      )
-
-
+                      ),
                   ],
                 ),
               );
@@ -587,7 +604,6 @@ class _UserPageState extends State<UserPage> {
         isOfflineMode = false;
         selectedIndex = 2; // Inventory Management
       }
-
       // TRANSACTION-RELATED
       else if (type == 'DISPENSE' || type == 'STOCK_ADDED') {
         isOfflineMode = false;
@@ -595,7 +611,6 @@ class _UserPageState extends State<UserPage> {
       }
     });
   }
-
 
   String _formatTime(DateTime time) {
     final now = DateTime.now();
