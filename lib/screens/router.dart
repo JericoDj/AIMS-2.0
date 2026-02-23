@@ -35,6 +35,7 @@ GoRouter createRouter(AccountsProvider accountsProvider) {
         return '/login/admin';
       }
 
+
       // ================= ADMIN =================
       if (isAdmin) {
         if (location.startsWith('/admin')) {
